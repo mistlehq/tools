@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "include": ["dependencies", "devDependencies", "unlisted", "binaries", "unresolved"],
+  "ignoreBinaries": ["typos"],
+  "workspaces": {
+    ".": {
+      "ignoreDependencies": ["typos"],
+      "entry": [
+        "package.json",
+        "lefthook.yml",
+        "mise.toml",
+        ".commitlintrc.json",
+        ".lintstagedrc.json",
+        ".oxlintrc.json",
+        ".oxfmtrc.json",
+        ".jscpd.json",
+        "knip.jsonc",
+      ],
+    },
+    "packages/*": {
+      "entry": ["src/index.{js,ts,tsx}", "*.config.{js,mjs,ts}"],
+    },
+  },
+  "ignoreFiles": [".git/**", ".turbo/**", "**/dist/**", "**/coverage/**", "node_modules/**"],
+}
