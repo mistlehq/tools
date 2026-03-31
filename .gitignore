@@ -1,6 +1,6 @@
-node_modules
-.turbo
+.env*
+!.envrc
+bin
+coverage.out
 dist
-coverage
-*.tsbuildinfo
-
+.DS_Store

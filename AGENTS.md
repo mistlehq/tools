@@ -3,20 +3,15 @@
 ## Scope
 
 - This repository hosts open source provider-focused CLIs and shared packages for Mistle.
-- Provider CLIs live directly in `packages/*`. Do not create package names like `foo-cli`; the CLI nature is already implied by the repository.
-- `packages/core` contains shared CLI infrastructure.
+- Provider binaries live under `cmd/*`.
+- Keep the initial Go structure small and only extract shared packages once the duplication is real.
 
 ## Tooling
 
 - This repo uses `mise` to pin the development toolchain. Run `mise trust ./mise.toml` once, then `mise install`.
-- Prefer running workspace commands through `mise exec -- ...` so the pinned Bun toolchain is used consistently.
-- The canonical package manager is Bun.
-- `oxfmt` is the formatter and `oxlint` is the linter. Do not add Biome, ESLint, or Prettier unless explicitly requested.
-- `knip`, `jscpd`, and `typos` are part of the repository linting stack.
-- Bun is used for standalone binary builds. TypeScript remains the source language.
-- Prefer `tsgo` for typechecking and package builds. Use project references and build mode for workspace packages.
-- Git hooks are managed with `lefthook`.
-- Conventional Commits are enforced with `commitlint`.
+- Prefer running commands through `mise exec -- ...` so the pinned Go toolchain is used consistently.
+- Keep the toolchain minimal. Do not reintroduce the old Bun/TypeScript stack unless explicitly requested.
+- Always use Conventional Commits such as `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, and `docs:`.
 
 ## Dependencies & External APIs
 
@@ -44,35 +39,15 @@
 
 ### Test Layout
 
-- Unit tests: colocate as `src/**/*.test.ts`.
-- Property tests: name them `*.property.test.ts` and colocate them with the unit-tested module.
-- Integration tests: place them in `packages/*/integration/`.
-- End-to-end or system-style CLI tests should exercise the real binary or spawned CLI process rather than internal helpers when practical.
-
-### Property-Based Testing
-
-- Use `fast-check` with Vitest via `@fast-check/vitest`.
-- Keep property tests deterministic and replayable.
-- Use explicit generator bounds and avoid heavy `.filter(...)` chains.
-- Assert meaningful invariants such as round-trips, idempotence, canonicalization, stable ordering, or non-mutation.
+- Unit tests: colocate them with the Go package they cover as `*_test.go`.
+- Integration tests: use Go's normal `_test.go` structure and keep them near the package they exercise unless a broader layout is clearly needed.
 
 ## Workflows
 
 - Run these commands in this order when validating a change:
-  - `mise exec -- bun run format`
-  - `mise exec -- bun run lint`
-  - `mise exec -- bun run typecheck`
-  - `mise exec -- bun run test`
-- Also run `mise exec -- bun run build` when your change affects packaging, entrypoints, or release artifacts.
-- Do not use `--no-verify` for commits or pushes.
-- Always use Conventional Commits such as `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, and `docs:`.
+  - `mise exec -- go test ./...`
+- Also run `mkdir -p dist && mise exec -- go build -o dist/<name> ./cmd/<name>` when your change affects entrypoints or binary packaging.
 - Prefer small commits that keep related changes together.
-
-## Releases
-
-- This repo uses Changesets for versioning and changelog management.
-- If a change affects a public package or binary in a user-visible way, add a changeset unless the user explicitly says not to.
-- Do not bundle unrelated release notes into a single changeset.
 
 ## Pull Requests
 
@@ -80,29 +55,9 @@
 - Before opening a PR, rebase onto the latest `main`.
 - If you open a PR, stay with it until CI is green unless the remaining failure requires human intervention.
 
-## Language Guidance
+## Go Guidance
 
-### TypeScript
-
-- `any` and `as` are forbidden.
-- Check `node_modules` for real external API types instead of guessing.
-- Never use inline imports or dynamic imports for types. Use standard top-level imports.
-- Do not remove intentional functionality just to satisfy types or tooling. Upgrade or adapt the dependency instead.
-- Avoid immediately invoked function expressions. Prefer module scope or named functions.
-- Avoid unnecessary inline closures when a named function is clearer.
-
-### CLI Design
-
-- Keep CLIs thin. Put reusable logic in shared packages rather than mixing common infrastructure into every provider package.
-- Put universal CLI behavior such as `help`, `version`, shared output framing, and common process handling in `packages/core`.
+- Prefer the standard library first.
+- Keep packages small and package-centric rather than recreating TypeScript-style folder layering.
+- Start flat. Extract shared packages only when a second binary actually needs the same behavior.
 - Parse arguments explicitly and fail with clear error messages on invalid input.
-- Prefer machine-readable output modes only when they are intentional and specified by the command contract.
-- Do not hide provider-specific constraints. Surface them directly in help text, errors, and docs.
-
-### Provider Integrations
-
-- Prefer official provider terminology for auth, scopes, resources, and identifiers.
-- Do not assume one auth strategy fits all providers. Model provider-specific auth expectations explicitly.
-- When supporting multiple auth modes for one provider, make the mode selection explicit rather than inferred from loosely shaped input.
-- When a CLI is intended to run behind Mistle's credentialless proxy model, keep credential resolution and auth header injection outside the provider package.
-- Keep config resolution opaque to command handlers. Use runtime adapters at the package boundary instead of loading env or files directly inside command modules.

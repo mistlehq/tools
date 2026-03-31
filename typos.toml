@@ -1,2 +1,0 @@
-[files]
-extend-exclude = [".git", ".turbo", "**/dist", "**/coverage", "node_modules"]
