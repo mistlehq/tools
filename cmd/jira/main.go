@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -237,7 +238,33 @@ func (cli CLI) runIssueEditMeta(args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf("issue editmeta is not implemented yet")
+	if len(args) != 1 {
+		return fmt.Errorf("issue editmeta expects exactly 1 positional argument")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	editMeta, err := jc.GetIssueEditMeta(args[0])
+	if err != nil {
+		return err
+	}
+
+	fieldIDs := make([]string, 0, len(editMeta.Fields))
+	for fieldID := range editMeta.Fields {
+		fieldIDs = append(fieldIDs, fieldID)
+	}
+	sort.Strings(fieldIDs)
+
+	fmt.Fprintln(cli.stdout, "FIELD ID\tNAME\tREQUIRED\tTYPE")
+	for _, fieldID := range fieldIDs {
+		field := editMeta.Fields[fieldID]
+		fmt.Fprintf(cli.stdout, "%s\t%s\t%t\t%s\n", fieldID, field.Name, field.Required, field.Schema.Type)
+	}
+
+	return nil
 }
 
 func (cli CLI) runIssueAssignSet(args []string) error {
