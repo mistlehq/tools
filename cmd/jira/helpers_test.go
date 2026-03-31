@@ -23,12 +23,17 @@ type commandResult struct {
 }
 
 func runCommand(t *testing.T, env Environment, args ...string) (commandResult, error) {
+	return runCommandWithInput(t, env, "", args...)
+}
+
+func runCommandWithInput(t *testing.T, env Environment, input string, args ...string) (commandResult, error) {
 	t.Helper()
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
 	cli := CLI{
+		stdin:  bytes.NewBufferString(input),
 		stdout: &stdout,
 		stderr: &stderr,
 		env:    env,
@@ -42,6 +47,10 @@ func runCommand(t *testing.T, env Environment, args ...string) (commandResult, e
 }
 
 func setupAndRunCommand(t *testing.T, args ...string) commandResult {
+	return setupAndRunCommandWithInput(t, "", args...)
+}
+
+func setupAndRunCommandWithInput(t *testing.T, input string, args ...string) commandResult {
 	t.Helper()
 
 	upstreamBaseURL := getRequiredEnv(t, "JIRA_TEST_UPSTREAM_BASE_URL")
@@ -64,9 +73,9 @@ func setupAndRunCommand(t *testing.T, args ...string) commandResult {
 		}
 	})
 
-	commandResult, err := runCommand(t, Environment{
+	commandResult, err := runCommandWithInput(t, Environment{
 		"JIRA_BASE_URL": proxy.BaseURL,
-	}, args...)
+	}, input, args...)
 	if err != nil {
 		t.Fatal(err)
 	}

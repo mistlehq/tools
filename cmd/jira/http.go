@@ -116,6 +116,11 @@ type JiraMyself struct {
 	Email       string `json:"emailAddress"`
 }
 
+type JiraUser struct {
+	AccountID   string `json:"accountId"`
+	DisplayName string `json:"displayName"`
+}
+
 func (jc JiraClient) GetMyself() (JiraMyself, error) {
 	body, err := jc.get("/rest/api/3/myself")
 
@@ -170,6 +175,16 @@ type JiraIssueStatus struct {
 	Name string `json:"name"`
 }
 
+type JiraComment struct {
+	ID      string   `json:"id"`
+	Author  JiraUser `json:"author"`
+	Created string   `json:"created"`
+}
+
+type AddCommentInput struct {
+	Body string
+}
+
 func (jc JiraClient) GetIssue(issueOrKey string) (JiraIssue, error) {
 	body, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s?fields=summary,status", issueOrKey))
 	if err != nil {
@@ -215,4 +230,32 @@ func (jc JiraClient) SearchIssues(jql string) (JiraIssueSearchResult, error) {
 	}
 
 	return searchResult, nil
+}
+
+func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (JiraComment, error) {
+	bodyDocument, err := NewJiraTextDocument(input.Body)
+	if err != nil {
+		return JiraComment{}, err
+	}
+
+	requestBody, err := json.Marshal(struct {
+		Body JiraDocument `json:"body"`
+	}{
+		Body: bodyDocument,
+	})
+	if err != nil {
+		return JiraComment{}, err
+	}
+
+	responseBody, err := jc.post(fmt.Sprintf("/rest/api/3/issue/%s/comment", issueOrKey), requestBody)
+	if err != nil {
+		return JiraComment{}, err
+	}
+
+	var comment JiraComment
+	if err := json.Unmarshal(responseBody, &comment); err != nil {
+		return JiraComment{}, err
+	}
+
+	return comment, nil
 }
