@@ -36,6 +36,9 @@ The supported commands are:
 - `jira issue transition <issue-key> --to <transition-name>`
 - `jira issue transition <issue-key> --to-id <transition-id>`
 - `jira issue update help`
+- `jira issue update <issue-key> --summary <text>`
+- `jira issue update <issue-key> --description <text>`
+- `jira issue update <issue-key> --description-file <path>`
 - `jira issue editmeta help`
 
 ### Discovery
@@ -102,6 +105,9 @@ jira issue assign PROJ-123 --unassigned
 jira issue transition list PROJ-123
 jira issue transition PROJ-123 --to 'In Progress'
 jira issue transition PROJ-123 --to-id 31
+jira issue update PROJ-123 --summary 'Tighten validation'
+jira issue update PROJ-123 --description 'Expanded implementation notes'
+jira issue update PROJ-123 --description-file ./description.txt
 ```
 
 ## Build
