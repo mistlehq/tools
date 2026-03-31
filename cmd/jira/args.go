@@ -25,6 +25,9 @@ func (parsed parsedArgs) first(name string) string {
 
 // parseArgs accepts interleaved positionals and GNU-style flags in either
 // `--name value` or `--name=value` form.
+func (parsed parsedArgs) has(name string) bool {
+	return len(parsed.flags[name]) > 0
+}
 func parseArgs(args []string, specs map[string]argSpec) (parsedArgs, error) {
 	parsed := parsedArgs{
 		flags: make(map[string][]string),

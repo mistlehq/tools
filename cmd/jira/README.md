@@ -28,6 +28,9 @@ The supported commands are:
 - `jira issue comment add <issue-key> --body <text>`
 - `jira issue comment add <issue-key> --body-file <path>`
 - `jira issue assign help`
+- `jira issue assign <issue-key> --me`
+- `jira issue assign <issue-key> --account-id <account-id>`
+- `jira issue assign <issue-key> --unassigned`
 - `jira issue transition help`
 - `jira issue update help`
 - `jira issue editmeta help`
@@ -90,6 +93,9 @@ jira issue get PROJ-123
 jira issue search 'project = PROJ ORDER BY updated DESC'
 jira issue comment add PROJ-123 --body 'Looks good'
 jira issue comment add PROJ-123 --body-file ./comment.txt
+jira issue assign PROJ-123 --me
+jira issue assign PROJ-123 --account-id 712020:abc123
+jira issue assign PROJ-123 --unassigned
 ```
 
 ## Build
