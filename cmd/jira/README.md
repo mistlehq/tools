@@ -25,6 +25,11 @@ The supported commands are:
 - `jira project list`
 - `jira issue get <key>`
 - `jira issue search '<jql query>'`
+- `jira issue comment help`
+- `jira issue assign help`
+- `jira issue transition help`
+- `jira issue update help`
+- `jira issue editmeta help`
 
 ### Discovery
 
@@ -36,6 +41,21 @@ jira help
 jira auth
 jira project
 jira issue
+```
+
+Status changes, assignment, comments, and ordinary field edits are intentionally
+separate command families because Jira exposes them as separate API operations.
+
+This branch also adds nested help pages for the issue command families. Those
+help pages make the CLI more discoverable without changing the supported write
+operations yet:
+
+```sh
+jira issue comment help
+jira issue assign help
+jira issue transition help
+jira issue update help
+jira issue editmeta help
 ```
 
 ### Configuration

@@ -22,6 +22,25 @@ type commandResult struct {
 	stderr bytes.Buffer
 }
 
+func runCommand(t *testing.T, env Environment, args ...string) (commandResult, error) {
+	t.Helper()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cli := CLI{
+		stdout: &stdout,
+		stderr: &stderr,
+		env:    env,
+	}
+
+	err := cli.run(args)
+	return commandResult{
+		stdout: stdout,
+		stderr: stderr,
+	}, err
+}
+
 func setupAndRunCommand(t *testing.T, args ...string) commandResult {
 	t.Helper()
 
@@ -45,24 +64,12 @@ func setupAndRunCommand(t *testing.T, args ...string) commandResult {
 		}
 	})
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	cli := CLI{
-		stdout: &stdout,
-		stderr: &stderr,
-		env: Environment{
-			"JIRA_BASE_URL": proxy.BaseURL,
-		},
-	}
-
-	err = cli.run(args)
+	commandResult, err := runCommand(t, Environment{
+		"JIRA_BASE_URL": proxy.BaseURL,
+	}, args...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return commandResult{
-		stdout: stdout,
-		stderr: stderr,
-	}
+	return commandResult
 }
