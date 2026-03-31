@@ -221,6 +221,12 @@ type JiraIssueStatus struct {
 	Name string `json:"name"`
 }
 
+type JiraTransition struct {
+	ID   string          `json:"id"`
+	Name string          `json:"name"`
+	To   JiraIssueStatus `json:"to"`
+}
+
 type JiraComment struct {
 	ID      string   `json:"id"`
 	Author  JiraUser `json:"author"`
@@ -252,6 +258,10 @@ type JiraIssueSearchRequest struct {
 
 type JiraIssueSearchResult struct {
 	Issues []JiraIssue `json:"issues"`
+}
+
+type JiraTransitionList struct {
+	Transitions []JiraTransition `json:"transitions"`
 }
 
 func (jc JiraClient) SearchIssues(jql string) (JiraIssueSearchResult, error) {
@@ -293,6 +303,41 @@ func (jc JiraClient) AssignIssue(issueOrKey string, input AssignIssueInput) erro
 	}
 
 	_, err = jc.put(fmt.Sprintf("/rest/api/3/issue/%s/assignee", issueOrKey), requestBody)
+	return err
+}
+
+func (jc JiraClient) ListIssueTransitions(issueOrKey string) (JiraTransitionList, error) {
+	responseBody, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s/transitions", issueOrKey))
+	if err != nil {
+		return JiraTransitionList{}, err
+	}
+
+	var transitionList JiraTransitionList
+	if err := json.Unmarshal(responseBody, &transitionList); err != nil {
+		return JiraTransitionList{}, err
+	}
+
+	return transitionList, nil
+}
+
+type TransitionIssueInput struct {
+	TransitionID string
+}
+
+func (jc JiraClient) TransitionIssue(issueOrKey string, input TransitionIssueInput) error {
+	var payload struct {
+		Transition struct {
+			ID string `json:"id"`
+		} `json:"transition"`
+	}
+	payload.Transition.ID = input.TransitionID
+
+	requestBody, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = jc.post(fmt.Sprintf("/rest/api/3/issue/%s/transitions", issueOrKey), requestBody)
 	return err
 }
 

@@ -216,9 +216,9 @@ func (cli CLI) runIssueTransition(args []string) error {
 
 	switch args[0] {
 	case "list":
-		return fmt.Errorf("issue transition list is not implemented yet")
+		return cli.runIssueTransitionList(args[1:])
 	default:
-		return fmt.Errorf("issue transition is not implemented yet")
+		return cli.runIssueTransitionMove(args)
 	}
 }
 
@@ -309,6 +309,122 @@ func (cli CLI) runIssueAssignSet(args []string) error {
 	fmt.Fprintln(cli.stdout, "Issue: "+issue.Key)
 	fmt.Fprintln(cli.stdout, "Assignee: "+assigneeName)
 	return nil
+}
+
+func (cli CLI) runIssueTransitionList(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("issue transition list expects exactly 1 positional argument")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	transitionList, err := jc.ListIssueTransitions(args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "ID\tNAME\tTO STATUS")
+	for _, transition := range transitionList.Transitions {
+		fmt.Fprintf(cli.stdout, "%s\t%s\t%s\n", transition.ID, transition.Name, transition.To.Name)
+	}
+
+	return nil
+}
+
+func (cli CLI) runIssueTransitionMove(args []string) error {
+	parsedArgs, err := parseArgs(args, map[string]argSpec{
+		"to": {
+			takesValue: true,
+		},
+		"to-id": {
+			takesValue: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.positionals) != 1 {
+		return fmt.Errorf("issue transition expects exactly 1 positional argument")
+	}
+
+	selectedFlags := 0
+	if parsedArgs.has("to") {
+		selectedFlags++
+	}
+
+	if parsedArgs.has("to-id") {
+		selectedFlags++
+	}
+
+	if selectedFlags != 1 {
+		return fmt.Errorf("exactly one of --to or --to-id is required")
+	}
+
+	issueKey := parsedArgs.positionals[0]
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	transitionList, err := jc.ListIssueTransitions(issueKey)
+	if err != nil {
+		return err
+	}
+
+	selectedTransition, err := selectTransition(issueKey, transitionList.Transitions, parsedArgs)
+	if err != nil {
+		return err
+	}
+
+	if err := jc.TransitionIssue(issueKey, TransitionIssueInput{
+		TransitionID: selectedTransition.ID,
+	}); err != nil {
+		return err
+	}
+
+	issue, err := jc.GetIssue(issueKey)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "Issue: "+issue.Key)
+	fmt.Fprintln(cli.stdout, "Transition: "+selectedTransition.Name)
+	fmt.Fprintln(cli.stdout, "Status: "+issue.Fields.Status.Name)
+	return nil
+}
+
+func selectTransition(issueKey string, transitions []JiraTransition, parsedArgs parsedArgs) (JiraTransition, error) {
+	if parsedArgs.has("to-id") {
+		transitionID := parsedArgs.first("to-id")
+		for _, transition := range transitions {
+			if transition.ID == transitionID {
+				return transition, nil
+			}
+		}
+
+		return JiraTransition{}, fmt.Errorf("no transition with id %q for issue %s", transitionID, issueKey)
+	}
+
+	transitionName := parsedArgs.first("to")
+	matches := make([]JiraTransition, 0, len(transitions))
+	for _, transition := range transitions {
+		if transition.Name == transitionName {
+			matches = append(matches, transition)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return JiraTransition{}, fmt.Errorf("no transition named %q for issue %s", transitionName, issueKey)
+	case 1:
+		return matches[0], nil
+	default:
+		return JiraTransition{}, fmt.Errorf("multiple transitions named %q for issue %s; use 'jira issue transition list %s' or --to-id", transitionName, issueKey, issueKey)
+	}
 }
 
 func (cli CLI) runIssueCommentAdd(args []string) error {

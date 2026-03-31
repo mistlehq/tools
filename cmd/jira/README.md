@@ -32,6 +32,9 @@ The supported commands are:
 - `jira issue assign <issue-key> --account-id <account-id>`
 - `jira issue assign <issue-key> --unassigned`
 - `jira issue transition help`
+- `jira issue transition list <issue-key>`
+- `jira issue transition <issue-key> --to <transition-name>`
+- `jira issue transition <issue-key> --to-id <transition-id>`
 - `jira issue update help`
 - `jira issue editmeta help`
 
@@ -96,6 +99,9 @@ jira issue comment add PROJ-123 --body-file ./comment.txt
 jira issue assign PROJ-123 --me
 jira issue assign PROJ-123 --account-id 712020:abc123
 jira issue assign PROJ-123 --unassigned
+jira issue transition list PROJ-123
+jira issue transition PROJ-123 --to 'In Progress'
+jira issue transition PROJ-123 --to-id 31
 ```
 
 ## Build
