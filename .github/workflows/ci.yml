@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      JIRA_TEST_UPSTREAM_BASE_URL: ${{ secrets.JIRA_TEST_UPSTREAM_BASE_URL }}
+      JIRA_TEST_USERNAME: ${{ secrets.JIRA_TEST_USERNAME }}
+      JIRA_TEST_PASSWORD: ${{ secrets.JIRA_TEST_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run Tests
+        run: go test ./... -v
+
+      - name: Build CLI Binaries
+        run: |
+          mkdir -p dist
+
+          for dir in cmd/*; do
+            if [ ! -d "$dir" ]; then
+              continue
+            fi
+
+            cli="$(basename "$dir")"
+
+            GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+              go build \
+              -ldflags "-X main.Version=ci" \
+              -o "dist/${cli}-linux-amd64" \
+              "./cmd/${cli}"
+          done
