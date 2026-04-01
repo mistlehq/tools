@@ -2,8 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 )
 
 func getRequiredEnv(t *testing.T, name string) string {
@@ -79,4 +85,126 @@ func setupCommandEnvironment(t *testing.T) Environment {
 	return Environment{
 		"JIRA_BASE_URL": proxy.BaseURL,
 	}
+}
+
+const jiraTestTemplateIssueKey = "KAN-1"
+
+type jiraTestIssueTemplate struct {
+	Fields struct {
+		Project struct {
+			ID string `json:"id"`
+		} `json:"project"`
+		IssueType struct {
+			ID string `json:"id"`
+		} `json:"issuetype"`
+	} `json:"fields"`
+}
+
+type jiraCreatedIssue struct {
+	ID  string `json:"id"`
+	Key string `json:"key"`
+}
+
+func setupIsolatedIssue(t *testing.T) (Environment, string) {
+	t.Helper()
+
+	env := setupCommandEnvironment(t)
+	config, err := loadConfig(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jc := NewJiraClient(config)
+	template, err := getJiraTestIssueTemplate(jc, jiraTestTemplateIssueKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	issue, err := createJiraTestIssue(jc, template, fmt.Sprintf("integration test %s %d", t.Name(), time.Now().UnixNano()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		if err := deleteJiraTestIssue(jc, issue.Key); err != nil {
+			t.Errorf("failed to delete issue %s: %v", issue.Key, err)
+		}
+	})
+
+	return env, issue.Key
+}
+
+func getJiraTestIssueTemplate(jc JiraClient, issueKey string) (jiraTestIssueTemplate, error) {
+	responseBody, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s?fields=project,issuetype", issueKey))
+	if err != nil {
+		return jiraTestIssueTemplate{}, err
+	}
+
+	var template jiraTestIssueTemplate
+	if err := json.Unmarshal(responseBody, &template); err != nil {
+		return jiraTestIssueTemplate{}, err
+	}
+
+	return template, nil
+}
+
+func createJiraTestIssue(jc JiraClient, template jiraTestIssueTemplate, summary string) (jiraCreatedIssue, error) {
+	requestBody, err := json.Marshal(struct {
+		Fields map[string]any `json:"fields"`
+	}{
+		Fields: map[string]any{
+			"project": map[string]string{
+				"id": template.Fields.Project.ID,
+			},
+			"issuetype": map[string]string{
+				"id": template.Fields.IssueType.ID,
+			},
+			"summary": summary,
+		},
+	})
+	if err != nil {
+		return jiraCreatedIssue{}, err
+	}
+
+	responseBody, err := jc.post("/rest/api/3/issue", requestBody)
+	if err != nil {
+		return jiraCreatedIssue{}, err
+	}
+
+	var issue jiraCreatedIssue
+	if err := json.Unmarshal(responseBody, &issue); err != nil {
+		return jiraCreatedIssue{}, err
+	}
+
+	return issue, nil
+}
+
+func deleteJiraTestIssue(jc JiraClient, issueKey string) error {
+	request, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodDelete,
+		jc.baseURL+fmt.Sprintf("/rest/api/3/issue/%s", issueKey),
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	response, err := jc.client.Do(request)
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("request failed with status %d: %s", response.StatusCode, string(body))
+	}
+
+	return nil
 }

@@ -8,7 +8,12 @@ import (
 )
 
 func TestIssueCommentAddWithBody(t *testing.T) {
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "comment", "add", "KAN-1", "--body", "comment from integration test")
+	env, issueKey := setupIsolatedIssue(t)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "comment", "add", issueKey, "--body", "comment from integration test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 	lines := strings.Split(output, "\n")
 
@@ -34,13 +39,18 @@ func TestIssueCommentAddWithBody(t *testing.T) {
 }
 
 func TestIssueCommentAddWithBodyFile(t *testing.T) {
+	env, issueKey := setupIsolatedIssue(t)
 	tempDir := t.TempDir()
 	commentFile := filepath.Join(tempDir, "comment.txt")
 	if err := os.WriteFile(commentFile, []byte("comment from file"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "comment", "add", "KAN-1", "--body-file", commentFile)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "comment", "add", issueKey, "--body-file", commentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Comment ID: ") {
@@ -49,7 +59,12 @@ func TestIssueCommentAddWithBodyFile(t *testing.T) {
 }
 
 func TestIssueCommentAddWithStdin(t *testing.T) {
-	commandResult := setupAndRunCommandWithInput(t, "comment from stdin", "jira", "issue", "comment", "add", "KAN-1", "--body-file", "-")
+	env, issueKey := setupIsolatedIssue(t)
+	commandResult, err := runCommandWithInput(t, env, "comment from stdin", "jira", "issue", "comment", "add", issueKey, "--body-file", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Comment ID: ") {
