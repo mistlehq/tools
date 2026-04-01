@@ -6,7 +6,7 @@ import (
 )
 
 func TestIssueEditMeta(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "editmeta", "KAN-1")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "editmeta", "KAN-1")
 	output := strings.TrimSpace(commandResult.stdout.String())
 	lines := strings.Split(output, "\n")
 
