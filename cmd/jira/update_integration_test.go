@@ -10,21 +10,25 @@ import (
 )
 
 func TestIssueUpdateSummary(t *testing.T) {
+	env, issueKey := setupIsolatedIssue(t)
 	summary := fmt.Sprintf("summary updated at %d", time.Now().UnixNano())
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "update", "KAN-1", "--summary", summary)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "update", issueKey, "--summary", summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Updated: summary") {
 		t.Fatal("expected update output to mention summary")
 	}
 
-	env := setupCommandEnvironment(t)
 	config, err := loadConfig(env)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	issue, err := NewJiraClient(config).GetIssue("KAN-1")
+	issue, err := NewJiraClient(config).GetIssue(issueKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +39,12 @@ func TestIssueUpdateSummary(t *testing.T) {
 }
 
 func TestIssueUpdateDescription(t *testing.T) {
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "update", "KAN-1", "--description", "description updated from integration test")
+	env, issueKey := setupIsolatedIssue(t)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "update", issueKey, "--description", "description updated from integration test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Updated: description") {
@@ -44,13 +53,18 @@ func TestIssueUpdateDescription(t *testing.T) {
 }
 
 func TestIssueUpdateDescriptionFile(t *testing.T) {
+	env, issueKey := setupIsolatedIssue(t)
 	tempDir := t.TempDir()
 	descriptionFile := filepath.Join(tempDir, "description.txt")
 	if err := os.WriteFile(descriptionFile, []byte("description from file"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "update", "KAN-1", "--description-file", descriptionFile)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "update", issueKey, "--description-file", descriptionFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Updated: description") {
@@ -59,8 +73,13 @@ func TestIssueUpdateDescriptionFile(t *testing.T) {
 }
 
 func TestIssueUpdateSummaryAndDescription(t *testing.T) {
+	env, issueKey := setupIsolatedIssue(t)
 	summary := fmt.Sprintf("combined update at %d", time.Now().UnixNano())
-	commandResult := setupAndRunCommandWithInput(t, "combined description from stdin", "jira", "issue", "update", "KAN-1", "--summary", summary, "--description-file", "-")
+	commandResult, err := runCommandWithInput(t, env, "combined description from stdin", "jira", "issue", "update", issueKey, "--summary", summary, "--description-file", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Updated: summary, description") {

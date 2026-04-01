@@ -6,7 +6,12 @@ import (
 )
 
 func TestIssueAssignToMe(t *testing.T) {
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "assign", "KAN-1", "--me")
+	env, issueKey := setupIsolatedIssue(t)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "assign", issueKey, "--me")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 	lines := strings.Split(output, "\n")
 
@@ -24,12 +29,21 @@ func TestIssueAssignToMe(t *testing.T) {
 }
 
 func TestIssueAssignByAccountID(t *testing.T) {
-	myselfResult := setupAndRunCommandWithInput(t, "", "jira", "auth", "whoami")
+	env, issueKey := setupIsolatedIssue(t)
+	myselfResult, err := runCommandWithInput(t, env, "", "jira", "auth", "whoami")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(myselfResult.stdout.String())
 	lines := strings.Split(output, "\n")
 	accountID := strings.TrimPrefix(lines[0], "Account ID: ")
 
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "assign", "KAN-1", "--account-id", accountID)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "assign", issueKey, "--account-id", accountID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	assignOutput := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(assignOutput, "Assignee: ") {
@@ -38,7 +52,12 @@ func TestIssueAssignByAccountID(t *testing.T) {
 }
 
 func TestIssueAssignUnassigned(t *testing.T) {
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "assign", "KAN-1", "--unassigned")
+	env, issueKey := setupIsolatedIssue(t)
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "assign", issueKey, "--unassigned")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Assignee: Unassigned") {
