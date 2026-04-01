@@ -18,6 +18,14 @@ type CLI struct {
 	env    Environment
 }
 
+func isHelpToken(arg string) bool {
+	return arg == "help" || arg == "-h" || arg == "--help"
+}
+
+func isSingleHelpArg(args []string) bool {
+	return len(args) == 1 && isHelpToken(args[0])
+}
+
 func (cli CLI) jiraClient() (JiraClient, error) {
 	config, err := loadConfig(cli.env)
 	if err != nil {
@@ -52,13 +60,18 @@ func (cli CLI) run(args []string) error {
 }
 
 func (cli CLI) runAuth(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || isHelpToken(args[0]) {
 		cli.printAuthHelp()
 		return nil
 	}
 
 	switch args[0] {
 	case "whoami":
+		if isSingleHelpArg(args[1:]) {
+			cli.printAuthWhoAmIHelp()
+			return nil
+		}
+
 		jc, err := cli.jiraClient()
 		if err != nil {
 			return err
@@ -71,6 +84,11 @@ func (cli CLI) runAuth(args []string) error {
 }
 
 func (cli CLI) runAuthWhoAmI(jc JiraClient, args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printAuthWhoAmIHelp()
+		return nil
+	}
+
 	if len(args) > 0 {
 		return fmt.Errorf("whoami does not accept positional arguments")
 	}
@@ -87,26 +105,47 @@ func (cli CLI) runAuthWhoAmI(jc JiraClient, args []string) error {
 }
 
 func (cli CLI) printAuthHelp() {
-	fmt.Fprintln(cli.stdout, "jira auth")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Inspect Jira authentication state.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira auth help")
-	fmt.Fprintln(cli.stdout, "  jira auth whoami")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Commands:")
-	fmt.Fprintln(cli.stdout, "  whoami")
+	fmt.Fprint(cli.stdout, `jira auth
+
+Inspect Jira authentication state.
+
+Usage:
+  jira auth help
+  jira auth whoami
+  jira auth whoami --help
+
+Commands:
+  whoami    Show the Jira account behind the current auth context
+`)
+}
+
+func (cli CLI) printAuthWhoAmIHelp() {
+	fmt.Fprint(cli.stdout, `jira auth whoami
+
+Show the Jira account behind the current auth context.
+
+Usage:
+  jira auth whoami
+  jira auth whoami --help
+
+Output:
+  Prints the account ID, display name, and email returned by Jira.
+`)
 }
 
 func (cli CLI) runProject(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || isHelpToken(args[0]) {
 		cli.printProjectHelp()
 		return nil
 	}
 
 	switch args[0] {
 	case "list":
+		if isSingleHelpArg(args[1:]) {
+			cli.printProjectListHelp()
+			return nil
+		}
+
 		jc, err := cli.jiraClient()
 		if err != nil {
 			return err
@@ -119,6 +158,11 @@ func (cli CLI) runProject(args []string) error {
 }
 
 func (cli CLI) runProjectList(jc JiraClient, args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printProjectListHelp()
+		return nil
+	}
+
 	if len(args) > 0 {
 		return fmt.Errorf("project list does not accept positional arguments")
 	}
@@ -138,26 +182,47 @@ func (cli CLI) runProjectList(jc JiraClient, args []string) error {
 }
 
 func (cli CLI) printProjectHelp() {
-	fmt.Fprintln(cli.stdout, "jira project")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Inspect Jira projects.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira project help")
-	fmt.Fprintln(cli.stdout, "  jira project list")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Commands:")
-	fmt.Fprintln(cli.stdout, "  list")
+	fmt.Fprint(cli.stdout, `jira project
+
+Inspect Jira projects visible to the current caller.
+
+Usage:
+  jira project help
+  jira project list
+  jira project list --help
+
+Commands:
+  list    List visible projects with their IDs, keys, and names
+`)
+}
+
+func (cli CLI) printProjectListHelp() {
+	fmt.Fprint(cli.stdout, `jira project list
+
+List Jira projects visible to the current caller.
+
+Usage:
+  jira project list
+  jira project list --help
+
+Output:
+  Prints a table with project ID, project key, and project name.
+`)
 }
 
 func (cli CLI) runIssue(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || isHelpToken(args[0]) {
 		cli.printIssueHelp()
 		return nil
 	}
 
 	switch args[0] {
 	case "get":
+		if isSingleHelpArg(args[1:]) {
+			cli.printIssueGetHelp()
+			return nil
+		}
+
 		jc, err := cli.jiraClient()
 		if err != nil {
 			return err
@@ -165,6 +230,11 @@ func (cli CLI) runIssue(args []string) error {
 
 		return cli.runIssueGet(jc, args[1:])
 	case "search":
+		if isSingleHelpArg(args[1:]) {
+			cli.printIssueSearchHelp()
+			return nil
+		}
+
 		jc, err := cli.jiraClient()
 		if err != nil {
 			return err
@@ -187,7 +257,7 @@ func (cli CLI) runIssue(args []string) error {
 }
 
 func (cli CLI) runIssueComment(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || isHelpToken(args[0]) {
 		cli.printIssueCommentHelp()
 		return nil
 	}
@@ -201,8 +271,13 @@ func (cli CLI) runIssueComment(args []string) error {
 }
 
 func (cli CLI) runIssueAssign(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 {
 		cli.printIssueAssignHelp()
+		return nil
+	}
+
+	if isSingleHelpArg(args) {
+		cli.printIssueAssignCommandHelp()
 		return nil
 	}
 
@@ -210,7 +285,7 @@ func (cli CLI) runIssueAssign(args []string) error {
 }
 
 func (cli CLI) runIssueTransition(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || isHelpToken(args[0]) {
 		cli.printIssueTransitionHelp()
 		return nil
 	}
@@ -224,8 +299,13 @@ func (cli CLI) runIssueTransition(args []string) error {
 }
 
 func (cli CLI) runIssueUpdate(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 {
 		cli.printIssueUpdateHelp()
+		return nil
+	}
+
+	if isSingleHelpArg(args) {
+		cli.printIssueUpdateFieldsHelp()
 		return nil
 	}
 
@@ -233,8 +313,8 @@ func (cli CLI) runIssueUpdate(args []string) error {
 }
 
 func (cli CLI) runIssueEditMeta(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
-		cli.printIssueEditMetaHelp()
+	if isSingleHelpArg(args) {
+		cli.printIssueEditMetaCommandHelp()
 		return nil
 	}
 
@@ -268,6 +348,11 @@ func (cli CLI) runIssueEditMeta(args []string) error {
 }
 
 func (cli CLI) runIssueAssignSet(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueAssignCommandHelp()
+		return nil
+	}
+
 	parsedArgs, err := parseArgs(args, map[string]argSpec{
 		"me": {},
 		"account-id": {
@@ -339,6 +424,11 @@ func (cli CLI) runIssueAssignSet(args []string) error {
 }
 
 func (cli CLI) runIssueTransitionList(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueTransitionListHelp()
+		return nil
+	}
+
 	if len(args) != 1 {
 		return fmt.Errorf("issue transition list expects exactly 1 positional argument")
 	}
@@ -362,6 +452,11 @@ func (cli CLI) runIssueTransitionList(args []string) error {
 }
 
 func (cli CLI) runIssueTransitionMove(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueTransitionMoveHelp()
+		return nil
+	}
+
 	parsedArgs, err := parseArgs(args, map[string]argSpec{
 		"to": {
 			takesValue: true,
@@ -425,6 +520,11 @@ func (cli CLI) runIssueTransitionMove(args []string) error {
 }
 
 func (cli CLI) runIssueUpdateFields(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueUpdateFieldsHelp()
+		return nil
+	}
+
 	parsedArgs, err := parseArgs(args, map[string]argSpec{
 		"summary": {
 			takesValue: true,
@@ -516,6 +616,11 @@ func selectTransition(issueKey string, transitions []JiraTransition, parsedArgs 
 }
 
 func (cli CLI) runIssueCommentAdd(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueCommentAddHelp()
+		return nil
+	}
+
 	parsedArgs, err := parseArgs(args, map[string]argSpec{
 		"body": {
 			takesValue: true,
@@ -601,6 +706,11 @@ func (cli CLI) readTextInput(valueFlagName string, value string, fileFlagName st
 }
 
 func (cli CLI) runIssueGet(jc JiraClient, args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueGetHelp()
+		return nil
+	}
+
 	if len(args) != 1 {
 		return fmt.Errorf("issue get expects exactly 1 positional argument")
 	}
@@ -619,6 +729,11 @@ func (cli CLI) runIssueGet(jc JiraClient, args []string) error {
 }
 
 func (cli CLI) runIssueSearch(jc JiraClient, args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueSearchHelp()
+		return nil
+	}
+
 	if len(args) != 1 {
 		return fmt.Errorf("issue search expects exactly 1 positional argument")
 	}
@@ -638,133 +753,310 @@ func (cli CLI) runIssueSearch(jc JiraClient, args []string) error {
 }
 
 func (cli CLI) printIssueHelp() {
-	fmt.Fprintln(cli.stdout, "jira issue")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Inspect and mutate Jira issues.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira issue help")
-	fmt.Fprintln(cli.stdout, "  jira issue get <issue-key>")
-	fmt.Fprintln(cli.stdout, "  jira issue search '<jql query>'")
-	fmt.Fprintln(cli.stdout, "  jira issue comment help")
-	fmt.Fprintln(cli.stdout, "  jira issue assign help")
-	fmt.Fprintln(cli.stdout, "  jira issue transition help")
-	fmt.Fprintln(cli.stdout, "  jira issue update help")
-	fmt.Fprintln(cli.stdout, "  jira issue editmeta help")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Commands:")
-	fmt.Fprintln(cli.stdout, "  get")
-	fmt.Fprintln(cli.stdout, "  search")
-	fmt.Fprintln(cli.stdout, "  comment")
-	fmt.Fprintln(cli.stdout, "  assign")
-	fmt.Fprintln(cli.stdout, "  transition")
-	fmt.Fprintln(cli.stdout, "  update")
-	fmt.Fprintln(cli.stdout, "  editmeta")
+	fmt.Fprint(cli.stdout, `jira issue
+
+Inspect and mutate Jira issues.
+
+Usage:
+  jira issue help
+  jira issue get <issue-key>
+  jira issue get --help
+  jira issue search '<jql query>'
+  jira issue search --help
+  jira issue comment help
+  jira issue assign help
+  jira issue transition help
+  jira issue update help
+  jira issue editmeta help
+
+Commands:
+  get         Fetch a single issue
+  search      Search issues with JQL
+  comment     Add comments to issues
+  assign      Change assignees
+  transition  List or apply workflow transitions
+  update      Edit summary and description fields
+  editmeta    Show which fields are editable on an issue
+
+Notes:
+  Status changes go through 'jira issue transition', not 'jira issue update'.
+  Leaf commands also accept --help for command-specific usage.
+`)
+}
+
+func (cli CLI) printIssueGetHelp() {
+	fmt.Fprint(cli.stdout, `jira issue get
+
+Fetch a single Jira issue by key.
+
+Usage:
+  jira issue get <issue-key>
+  jira issue get --help
+
+Output:
+  Prints the issue ID, key, summary, and current status.
+
+Example:
+  jira issue get PROJ-123
+`)
+}
+
+func (cli CLI) printIssueSearchHelp() {
+	fmt.Fprint(cli.stdout, `jira issue search
+
+Search Jira issues with a JQL query.
+
+Usage:
+  jira issue search '<jql query>'
+  jira issue search --help
+
+Output:
+  Prints a table with issue key, status, and summary.
+
+Example:
+  jira issue search 'project = PROJ ORDER BY updated DESC'
+`)
 }
 
 func (cli CLI) printIssueCommentHelp() {
-	fmt.Fprintln(cli.stdout, "jira issue comment")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Add comments to Jira issues.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira issue comment help")
-	fmt.Fprintln(cli.stdout, "  jira issue comment add <issue-key> --body <text>")
-	fmt.Fprintln(cli.stdout, "  jira issue comment add <issue-key> --body-file <path>")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Commands:")
-	fmt.Fprintln(cli.stdout, "  add")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Examples:")
-	fmt.Fprintln(cli.stdout, "  jira issue comment add PROJ-123 --body 'Looks good'")
-	fmt.Fprintln(cli.stdout, "  jira issue comment add PROJ-123 --body-file ./comment.txt")
+	fmt.Fprint(cli.stdout, `jira issue comment
+
+Add comments to Jira issues.
+
+Usage:
+  jira issue comment help
+  jira issue comment add <issue-key> --body <text>
+  jira issue comment add <issue-key> --body-file <path>
+  jira issue comment add --help
+
+Commands:
+  add    Create a new issue comment from inline text, a file, or stdin
+`)
+}
+
+func (cli CLI) printIssueCommentAddHelp() {
+	fmt.Fprint(cli.stdout, `jira issue comment add
+
+Add a comment to a Jira issue.
+
+Usage:
+  jira issue comment add <issue-key> --body <text>
+  jira issue comment add <issue-key> --body-file <path>
+  jira issue comment add --help
+
+Examples:
+  jira issue comment add PROJ-123 --body 'Looks good'
+  jira issue comment add PROJ-123 --body-file ./comment.txt
+  jira issue comment add PROJ-123 --body-file -
+
+Notes:
+  Exactly one of --body or --body-file is required.
+  Use --body-file - to read the comment body from stdin.
+`)
 }
 
 func (cli CLI) printIssueAssignHelp() {
-	fmt.Fprintln(cli.stdout, "jira issue assign")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Assign Jira issues.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira issue assign help")
-	fmt.Fprintln(cli.stdout, "  jira issue assign <issue-key> --me")
-	fmt.Fprintln(cli.stdout, "  jira issue assign <issue-key> --account-id <account-id>")
-	fmt.Fprintln(cli.stdout, "  jira issue assign <issue-key> --unassigned")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Examples:")
-	fmt.Fprintln(cli.stdout, "  jira issue assign PROJ-123 --me")
-	fmt.Fprintln(cli.stdout, "  jira issue assign PROJ-123 --account-id 712020:abc123")
+	fmt.Fprint(cli.stdout, `jira issue assign
+
+Assign Jira issues.
+
+Usage:
+  jira issue assign help
+  jira issue assign <issue-key> --me
+  jira issue assign <issue-key> --account-id <account-id>
+  jira issue assign <issue-key> --unassigned
+  jira issue assign --help
+
+Notes:
+  Exactly one of --me, --account-id, or --unassigned is required.
+`)
+}
+
+func (cli CLI) printIssueAssignCommandHelp() {
+	fmt.Fprint(cli.stdout, `jira issue assign
+
+Assign or clear the assignee on a Jira issue.
+
+Usage:
+  jira issue assign <issue-key> --me
+  jira issue assign <issue-key> --account-id <account-id>
+  jira issue assign <issue-key> --unassigned
+  jira issue assign --help
+
+Examples:
+  jira issue assign PROJ-123 --me
+  jira issue assign PROJ-123 --account-id 712020:abc123
+  jira issue assign PROJ-123 --unassigned
+
+Notes:
+  Exactly one of --me, --account-id, or --unassigned is required.
+`)
 }
 
 func (cli CLI) printIssueTransitionHelp() {
-	fmt.Fprintln(cli.stdout, "jira issue transition")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Move Jira issues through workflow transitions.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira issue transition help")
-	fmt.Fprintln(cli.stdout, "  jira issue transition list <issue-key>")
-	fmt.Fprintln(cli.stdout, "  jira issue transition <issue-key> --to <transition-name>")
-	fmt.Fprintln(cli.stdout, "  jira issue transition <issue-key> --to-id <transition-id>")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Examples:")
-	fmt.Fprintln(cli.stdout, "  jira issue transition list PROJ-123")
-	fmt.Fprintln(cli.stdout, "  jira issue transition PROJ-123 --to 'In Progress'")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Notes:")
-	fmt.Fprintln(cli.stdout, "  Use 'jira issue update' for summary and description changes.")
+	fmt.Fprint(cli.stdout, `jira issue transition
+
+Move Jira issues through workflow transitions.
+
+Usage:
+  jira issue transition help
+  jira issue transition list <issue-key>
+  jira issue transition list --help
+  jira issue transition <issue-key> --to <transition-name>
+  jira issue transition <issue-key> --to-id <transition-id>
+  jira issue transition --help
+
+Notes:
+  Use 'jira issue update' for summary and description changes.
+`)
+}
+
+func (cli CLI) printIssueTransitionListHelp() {
+	fmt.Fprint(cli.stdout, `jira issue transition list
+
+List the workflow transitions currently available for an issue.
+
+Usage:
+  jira issue transition list <issue-key>
+  jira issue transition list --help
+
+Output:
+  Prints transition ID, transition name, and destination status.
+
+Example:
+  jira issue transition list PROJ-123
+`)
+}
+
+func (cli CLI) printIssueTransitionMoveHelp() {
+	fmt.Fprint(cli.stdout, `jira issue transition
+
+Transition a Jira issue to a new workflow state.
+
+Usage:
+  jira issue transition <issue-key> --to <transition-name>
+  jira issue transition <issue-key> --to-id <transition-id>
+  jira issue transition --help
+
+Examples:
+  jira issue transition PROJ-123 --to 'In Progress'
+  jira issue transition PROJ-123 --to-id 31
+
+Notes:
+  Exactly one of --to or --to-id is required.
+  Use 'jira issue transition list <issue-key>' to inspect valid transitions first.
+`)
 }
 
 func (cli CLI) printIssueUpdateHelp() {
-	fmt.Fprintln(cli.stdout, "jira issue update")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Update editable Jira issue fields.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira issue update help")
-	fmt.Fprintln(cli.stdout, "  jira issue update <issue-key> --summary <text>")
-	fmt.Fprintln(cli.stdout, "  jira issue update <issue-key> --description <text>")
-	fmt.Fprintln(cli.stdout, "  jira issue update <issue-key> --description-file <path>")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Examples:")
-	fmt.Fprintln(cli.stdout, "  jira issue update PROJ-123 --summary 'Tighten validation'")
-	fmt.Fprintln(cli.stdout, "  jira issue update PROJ-123 --description-file ./description.txt")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Notes:")
-	fmt.Fprintln(cli.stdout, "  Status changes use 'jira issue transition'.")
+	fmt.Fprint(cli.stdout, `jira issue update
+
+Update editable Jira issue fields.
+
+Usage:
+  jira issue update help
+  jira issue update <issue-key> --summary <text>
+  jira issue update <issue-key> --description <text>
+  jira issue update <issue-key> --description-file <path>
+  jira issue update --help
+
+Notes:
+  Status changes use 'jira issue transition'.
+`)
 }
 
-func (cli CLI) printIssueEditMetaHelp() {
-	fmt.Fprintln(cli.stdout, "jira issue editmeta")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Show which Jira issue fields are editable.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira issue editmeta help")
-	fmt.Fprintln(cli.stdout, "  jira issue editmeta <issue-key>")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Examples:")
-	fmt.Fprintln(cli.stdout, "  jira issue editmeta PROJ-123")
+func (cli CLI) printIssueUpdateFieldsHelp() {
+	fmt.Fprint(cli.stdout, `jira issue update
+
+Update summary and description fields on a Jira issue.
+
+Usage:
+  jira issue update <issue-key> --summary <text>
+  jira issue update <issue-key> --description <text>
+  jira issue update <issue-key> --description-file <path>
+  jira issue update --help
+
+Examples:
+  jira issue update PROJ-123 --summary 'Tighten validation'
+  jira issue update PROJ-123 --description 'Expanded implementation notes'
+  jira issue update PROJ-123 --description-file ./description.txt
+  jira issue update PROJ-123 --description-file -
+
+Notes:
+  Provide at least one of --summary, --description, or --description-file.
+  Use --description-file - to read the description from stdin.
+  Status changes use 'jira issue transition'.
+`)
+}
+
+func (cli CLI) printIssueEditMetaCommandHelp() {
+	fmt.Fprint(cli.stdout, `jira issue editmeta
+
+Show edit metadata for a Jira issue.
+
+Usage:
+  jira issue editmeta <issue-key>
+  jira issue editmeta --help
+
+Output:
+  Prints editable field IDs, field names, whether they are required, and field types.
+
+Example:
+  jira issue editmeta PROJ-123
+`)
 }
 
 func (cli CLI) printHelp() {
-	fmt.Fprintln(cli.stdout, "jira")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "CLI for Jira Cloud.")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Usage:")
-	fmt.Fprintln(cli.stdout, "  jira help")
-	fmt.Fprintln(cli.stdout, "  jira version")
-	fmt.Fprintln(cli.stdout, "  jira auth help")
-	fmt.Fprintln(cli.stdout, "  jira project help")
-	fmt.Fprintln(cli.stdout, "  jira issue help")
-	fmt.Fprintln(cli.stdout, "")
-	fmt.Fprintln(cli.stdout, "Commands:")
-	fmt.Fprintln(cli.stdout, "  help")
-	fmt.Fprintln(cli.stdout, "  version")
-	fmt.Fprintln(cli.stdout, "  auth")
-	fmt.Fprintln(cli.stdout, "  project")
-	fmt.Fprintln(cli.stdout, "  issue")
+	fmt.Fprint(cli.stdout, `jira
+
+Thin Jira Cloud CLI for shells, scripts, and agent-driven workflows.
+
+The CLI assumes auth is already handled upstream and stays focused on direct Jira operations.
+
+Usage:
+  jira help
+  jira --help
+  jira version
+  jira auth help
+  jira project help
+  jira issue help
+
+Command Families:
+  auth       Inspect the current Jira auth context
+  project    Discover visible Jira projects
+  issue      Read issues and perform common issue mutations
+
+Common Starting Points:
+  jira auth whoami
+  jira project list
+  jira issue search 'project = PROJ ORDER BY updated DESC'
+  jira issue get PROJ-123
+
+Issue Workflows:
+  jira issue comment add PROJ-123 --body 'Looks good'
+  jira issue assign PROJ-123 --me
+  jira issue transition list PROJ-123
+  jira issue transition PROJ-123 --to 'In Progress'
+  jira issue update PROJ-123 --summary 'Tighten validation'
+  jira issue editmeta PROJ-123
+
+Dive Deeper:
+  jira auth help
+  jira project help
+  jira issue help
+  jira issue comment help
+  jira issue assign help
+  jira issue transition help
+  jira issue update help
+  jira issue editmeta help
+
+Help Conventions:
+  Namespaces accept help, -h, and --help.
+  Leaf commands also accept --help, for example:
+    jira issue get --help
+    jira issue search --help
+    jira issue transition list --help
+`)
 }
 
 func main() {

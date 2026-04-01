@@ -22,6 +22,14 @@
 - Avoid excessive abstractions that provide no immediate benefit
 - If abstractions are needed, consider surfacing them first as suggestions instead
 
+## CLI Help
+
+- Treat CLI help output as a product surface, not filler text.
+- Root `<provider> help` and `<provider> --help` should read like a landing-page README for first-time users and agents.
+- Root help should quickly explain what the CLI is for, the major command families, common workflows, and where to drill down next.
+- Preserve progressive discovery through namespace help, but ensure namespace and leaf commands also accept `--help`.
+- When help behavior changes materially, update the relevant README files and cover the behavior with tests.
+
 ## Fallback Behavior
 
 - Do not write fallback behavior unless the user explicitly asks for fallback behavior in this task.
