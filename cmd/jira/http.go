@@ -264,6 +264,20 @@ type JiraTransitionList struct {
 	Transitions []JiraTransition `json:"transitions"`
 }
 
+type JiraFieldSchema struct {
+	Type string `json:"type"`
+}
+
+type JiraEditMetaField struct {
+	Name     string          `json:"name"`
+	Required bool            `json:"required"`
+	Schema   JiraFieldSchema `json:"schema"`
+}
+
+type JiraIssueEditMeta struct {
+	Fields map[string]JiraEditMetaField `json:"fields"`
+}
+
 func (jc JiraClient) SearchIssues(jql string) (JiraIssueSearchResult, error) {
 	searchRequest := JiraIssueSearchRequest{
 		JQL:    jql,
@@ -372,6 +386,20 @@ func (jc JiraClient) UpdateIssue(issueOrKey string, input UpdateIssueInput) erro
 
 	_, err = jc.put(fmt.Sprintf("/rest/api/3/issue/%s", issueOrKey), requestBody)
 	return err
+}
+
+func (jc JiraClient) GetIssueEditMeta(issueOrKey string) (JiraIssueEditMeta, error) {
+	responseBody, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s/editmeta", issueOrKey))
+	if err != nil {
+		return JiraIssueEditMeta{}, err
+	}
+
+	var editMeta JiraIssueEditMeta
+	if err := json.Unmarshal(responseBody, &editMeta); err != nil {
+		return JiraIssueEditMeta{}, err
+	}
+
+	return editMeta, nil
 }
 
 func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (JiraComment, error) {
