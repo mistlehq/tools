@@ -1,23 +1,26 @@
-# General
-
 ## Scope
 
-- This repository hosts open source provider-focused CLIs and shared packages for Mistle.
+- This repository hosts open source provider-focused CLIs which are thin wrappers around provider APIs.
 - Provider binaries live under `cmd/*`.
-- Keep the initial Go structure small and only extract shared packages once the duplication is real.
 
 ## Tooling
 
 - This repo uses `mise` to pin the development toolchain. Run `mise trust ./mise.toml` once, then `mise install`.
 - Prefer running commands through `mise exec -- ...` so the pinned Go toolchain is used consistently.
-- Keep the toolchain minimal. Do not reintroduce the old Bun/TypeScript stack unless explicitly requested.
+- Keep the toolchain minimal.
 - Always use Conventional Commits such as `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, and `docs:`.
 
 ## Dependencies & External APIs
 
+- Avoid introducing dependencies as much as possible.
 - If you need to add a dependency, prefer the most maintained and widely adopted option with a clear API and active release cadence.
 - Before adding a dependency for an external provider, check the provider's official SDKs and official API documentation first.
-- Prefer small, focused dependencies over large framework-style additions unless the user explicitly wants a broader stack change.
+- Prefer small, focused dependencies over large framework-style additions.
+
+## Abstractions
+
+- Avoid excessive abstractions that provide no immediate benefit
+- If abstractions are needed, consider surfacing them first as suggestions instead
 
 ## Fallback Behavior
 
