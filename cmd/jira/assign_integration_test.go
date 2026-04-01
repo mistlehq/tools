@@ -6,7 +6,7 @@ import (
 )
 
 func TestIssueAssignToMe(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "assign", "KAN-1", "--me")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "assign", "KAN-1", "--me")
 	output := strings.TrimSpace(commandResult.stdout.String())
 	lines := strings.Split(output, "\n")
 
@@ -24,12 +24,12 @@ func TestIssueAssignToMe(t *testing.T) {
 }
 
 func TestIssueAssignByAccountID(t *testing.T) {
-	myselfResult := setupAndRunCommand(t, "jira", "auth", "whoami")
+	myselfResult := setupAndRunCommandWithInput(t, "", "jira", "auth", "whoami")
 	output := strings.TrimSpace(myselfResult.stdout.String())
 	lines := strings.Split(output, "\n")
 	accountID := strings.TrimPrefix(lines[0], "Account ID: ")
 
-	commandResult := setupAndRunCommand(t, "jira", "issue", "assign", "KAN-1", "--account-id", accountID)
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "assign", "KAN-1", "--account-id", accountID)
 	assignOutput := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(assignOutput, "Assignee: ") {
@@ -38,7 +38,7 @@ func TestIssueAssignByAccountID(t *testing.T) {
 }
 
 func TestIssueAssignUnassigned(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "assign", "KAN-1", "--unassigned")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "assign", "KAN-1", "--unassigned")
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Assignee: Unassigned") {
@@ -47,7 +47,7 @@ func TestIssueAssignUnassigned(t *testing.T) {
 }
 
 func TestIssueAssignRequiresExactlyOneTargetFlag(t *testing.T) {
-	_, err := runCommand(t, Environment{}, "jira", "issue", "assign", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "assign", "KAN-1")
 	if err == nil {
 		t.Fatal("expected issue assign without target flag to fail")
 	}
@@ -58,7 +58,7 @@ func TestIssueAssignRequiresExactlyOneTargetFlag(t *testing.T) {
 }
 
 func TestIssueAssignRejectsConflictingTargetFlags(t *testing.T) {
-	_, err := runCommand(t, Environment{}, "jira", "issue", "assign", "KAN-1", "--me", "--unassigned")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "assign", "KAN-1", "--me", "--unassigned")
 	if err == nil {
 		t.Fatal("expected conflicting issue assign flags to fail")
 	}
