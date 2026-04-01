@@ -18,7 +18,7 @@ This matches [Mistle](https://github.com/mistlehq/mistle)'s security model:
 
 All CLIs in this repository follow the same basic shape:
 
-- They are lightweight wrappers around provider HTTP clients rather than full local platforms or long-running services.
+- They are thin wrappers around provider APIs rather than full local platforms or long-running services.
 - They are non-interactive and are designed to work well in shells, scripts, and agent-driven workflows.
 - They do not handle auth directly. They operate as if they are already authenticated and rely on the configured proxy layer to inject credentials upstream.
 
