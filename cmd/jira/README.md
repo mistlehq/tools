@@ -6,8 +6,7 @@ CLI for Jira Cloud.
 
 `jira` is a standalone command-line interface for Jira Cloud.
 
-The CLI covers the common read-oriented Jira workflows needed by Mistle users
-and provider integrations, including:
+The CLI covers the common Jira workflows needed by Mistle users and provider integrations, including:
 
 - identity checks
 - project discovery
@@ -26,6 +25,17 @@ The supported commands are:
 - `jira issue get <key>`
 - `jira issue search '<jql query>'`
 
+### Discovery
+
+The CLI groups commands under `auth`, `project`, and `issue`. Use the top-level help to discover the available command families:
+
+```sh
+jira help
+jira auth
+jira project
+jira issue
+```
+
 ### Configuration
 
 `jira` uses one configuration shape:
@@ -43,6 +53,7 @@ Configuration can be supplied in either of these ways:
 ### Examples
 
 ```sh
+jira help
 jira auth whoami
 jira project list
 jira issue get PROJ-123
