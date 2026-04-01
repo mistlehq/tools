@@ -43,6 +43,17 @@ func runCommandWithInput(t *testing.T, env Environment, input string, args ...st
 }
 
 func setupAndRunCommandWithInput(t *testing.T, input string, args ...string) commandResult {
+	env := setupCommandEnvironment(t)
+
+	commandResult, err := runCommandWithInput(t, env, input, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return commandResult
+}
+
+func setupCommandEnvironment(t *testing.T) Environment {
 	t.Helper()
 
 	upstreamBaseURL := getRequiredEnv(t, "JIRA_TEST_UPSTREAM_BASE_URL")
@@ -65,12 +76,7 @@ func setupAndRunCommandWithInput(t *testing.T, input string, args ...string) com
 		}
 	})
 
-	commandResult, err := runCommandWithInput(t, Environment{
+	return Environment{
 		"JIRA_BASE_URL": proxy.BaseURL,
-	}, input, args...)
-	if err != nil {
-		t.Fatal(err)
 	}
-
-	return commandResult
 }
