@@ -19,6 +19,10 @@ The CLI covers common Jira workflows needed by Mistle users and provider integra
 
 ## Usage
 
+`jira help` is intended to work like an onboarding page for the CLI: it should give a new user enough context to start using the tool immediately, then point them at deeper namespace help for specific operations.
+
+All namespaces and leaf commands also accept `--help`, so agent-style discovery flows like `jira issue get --help` and `jira issue search --help` are expected to work.
+
 ### Commands
 
 The supported commands are:
@@ -56,14 +60,24 @@ The CLI groups commands under `auth`, `project`, and `issue`. Use help to discov
 
 ```sh
 jira help
+jira --help
 jira auth help
+jira auth whoami --help
 jira project help
+jira project list --help
 jira issue help
+jira issue get --help
+jira issue search --help
 jira issue comment help
+jira issue comment add --help
 jira issue assign help
+jira issue assign --help
 jira issue transition help
+jira issue transition list --help
 jira issue update help
+jira issue update --help
 jira issue editmeta help
+jira issue editmeta --help
 ```
 
 Status changes, assignment, comments, and ordinary field edits are intentionally separate command families because Jira exposes them as separate API operations.

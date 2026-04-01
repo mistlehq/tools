@@ -21,6 +21,8 @@ All CLIs in this repository follow the same basic shape:
 - They are thin wrappers around provider APIs rather than full local platforms or long-running services.
 - They are non-interactive and are designed to work well in shells, scripts, and agent-driven workflows.
 - They do not handle auth directly. They operate as if they are already authenticated and rely on the configured proxy layer to inject credentials upstream.
+- Their root `help` output should work like a landing-page README for first-time users: quick orientation, major command families, common workflows, and clear next steps.
+- Progressive discovery is still expected, but every namespace and leaf command should accept `--help` so users and agents can ask for local command guidance without trial-and-error.
 
 ## Supported CLIs
 
@@ -39,4 +41,4 @@ mkdir -p dist && go build -o dist/jira ./cmd/jira
 
 ## Usage
 
-Each CLI has its own README with command-specific documentation.
+Each CLI has its own README with command-specific documentation. In general, start with the root help for the binary you are using, then drill down into namespace or leaf help with `--help` as needed.
