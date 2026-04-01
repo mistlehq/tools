@@ -341,6 +341,39 @@ func (jc JiraClient) TransitionIssue(issueOrKey string, input TransitionIssueInp
 	return err
 }
 
+type UpdateIssueInput struct {
+	Summary     *string
+	Description *string
+}
+
+func (jc JiraClient) UpdateIssue(issueOrKey string, input UpdateIssueInput) error {
+	fields := make(map[string]any)
+	if input.Summary != nil {
+		fields["summary"] = *input.Summary
+	}
+
+	if input.Description != nil {
+		descriptionDocument, err := NewJiraTextDocument(*input.Description)
+		if err != nil {
+			return err
+		}
+
+		fields["description"] = descriptionDocument
+	}
+
+	requestBody, err := json.Marshal(struct {
+		Fields map[string]any `json:"fields"`
+	}{
+		Fields: fields,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = jc.put(fmt.Sprintf("/rest/api/3/issue/%s", issueOrKey), requestBody)
+	return err
+}
+
 func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (JiraComment, error) {
 	bodyDocument, err := NewJiraTextDocument(input.Body)
 	if err != nil {

@@ -228,7 +228,7 @@ func (cli CLI) runIssueUpdate(args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf("issue update is not implemented yet")
+	return cli.runIssueUpdateFields(args)
 }
 
 func (cli CLI) runIssueEditMeta(args []string) error {
@@ -394,6 +394,67 @@ func (cli CLI) runIssueTransitionMove(args []string) error {
 	fmt.Fprintln(cli.stdout, "Issue: "+issue.Key)
 	fmt.Fprintln(cli.stdout, "Transition: "+selectedTransition.Name)
 	fmt.Fprintln(cli.stdout, "Status: "+issue.Fields.Status.Name)
+	return nil
+}
+
+func (cli CLI) runIssueUpdateFields(args []string) error {
+	parsedArgs, err := parseArgs(args, map[string]argSpec{
+		"summary": {
+			takesValue: true,
+		},
+		"description": {
+			takesValue: true,
+		},
+		"description-file": {
+			takesValue: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.positionals) != 1 {
+		return fmt.Errorf("issue update expects exactly 1 positional argument")
+	}
+
+	summary := parsedArgs.first("summary")
+	descriptionFlag := parsedArgs.first("description")
+	descriptionFileFlag := parsedArgs.first("description-file")
+
+	updatedFields := make([]string, 0, 2)
+	input := UpdateIssueInput{}
+
+	if summary != "" {
+		input.Summary = &summary
+		updatedFields = append(updatedFields, "summary")
+	}
+
+	if descriptionFlag != "" || descriptionFileFlag != "" {
+		description, err := cli.readTextInput("description", descriptionFlag, "description-file", descriptionFileFlag)
+		if err != nil {
+			return err
+		}
+
+		input.Description = &description
+		updatedFields = append(updatedFields, "description")
+	}
+
+	if len(updatedFields) == 0 {
+		return fmt.Errorf("issue update requires at least one of --summary, --description, or --description-file")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	issueKey := parsedArgs.positionals[0]
+	if err := jc.UpdateIssue(issueKey, input); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "Issue: "+issueKey)
+	fmt.Fprintln(cli.stdout, "Updated: "+strings.Join(updatedFields, ", "))
 	return nil
 }
 
