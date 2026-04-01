@@ -110,6 +110,51 @@ func (jc JiraClient) post(path string, body []byte) ([]byte, error) {
 	return responseBody, nil
 }
 
+func (jc JiraClient) put(path string, body []byte) ([]byte, error) {
+	if !strings.HasPrefix(path, "/") {
+		return nil, fmt.Errorf("path must start with '/': %s", path)
+	}
+
+	url := jc.baseURL + path
+
+	request, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPut,
+		url,
+		bytes.NewReader(body),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	response, err := jc.client.Do(request)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("request failed with status %d: %s", response.StatusCode, string(body))
+	}
+
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return responseBody, nil
+}
+
 type JiraMyself struct {
 	AccountID   string `json:"accountId"`
 	DisplayName string `json:"displayName"`
@@ -167,8 +212,9 @@ type JiraIssue struct {
 }
 
 type JiraIssueFields struct {
-	Summary string          `json:"summary"`
-	Status  JiraIssueStatus `json:"status"`
+	Summary  string          `json:"summary"`
+	Status   JiraIssueStatus `json:"status"`
+	Assignee *JiraUser       `json:"assignee"`
 }
 
 type JiraIssueStatus struct {
@@ -186,7 +232,7 @@ type AddCommentInput struct {
 }
 
 func (jc JiraClient) GetIssue(issueOrKey string) (JiraIssue, error) {
-	body, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s?fields=summary,status", issueOrKey))
+	body, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s?fields=summary,status,assignee", issueOrKey))
 	if err != nil {
 		return JiraIssue{}, err
 	}
@@ -230,6 +276,24 @@ func (jc JiraClient) SearchIssues(jql string) (JiraIssueSearchResult, error) {
 	}
 
 	return searchResult, nil
+}
+
+type AssignIssueInput struct {
+	AccountID *string
+}
+
+func (jc JiraClient) AssignIssue(issueOrKey string, input AssignIssueInput) error {
+	requestBody, err := json.Marshal(struct {
+		AccountID *string `json:"accountId"`
+	}{
+		AccountID: input.AccountID,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = jc.put(fmt.Sprintf("/rest/api/3/issue/%s/assignee", issueOrKey), requestBody)
+	return err
 }
 
 func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (JiraComment, error) {

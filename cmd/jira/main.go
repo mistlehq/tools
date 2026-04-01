@@ -205,7 +205,7 @@ func (cli CLI) runIssueAssign(args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf("issue assign is not implemented yet")
+	return cli.runIssueAssignSet(args)
 }
 
 func (cli CLI) runIssueTransition(args []string) error {
@@ -238,6 +238,77 @@ func (cli CLI) runIssueEditMeta(args []string) error {
 	}
 
 	return fmt.Errorf("issue editmeta is not implemented yet")
+}
+
+func (cli CLI) runIssueAssignSet(args []string) error {
+	parsedArgs, err := parseArgs(args, map[string]argSpec{
+		"me": {},
+		"account-id": {
+			takesValue: true,
+		},
+		"unassigned": {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.positionals) != 1 {
+		return fmt.Errorf("issue assign expects exactly 1 positional argument")
+	}
+
+	selectedFlags := 0
+	if parsedArgs.has("me") {
+		selectedFlags++
+	}
+
+	if parsedArgs.has("account-id") {
+		selectedFlags++
+	}
+
+	if parsedArgs.has("unassigned") {
+		selectedFlags++
+	}
+
+	if selectedFlags != 1 {
+		return fmt.Errorf("exactly one of --me, --account-id, or --unassigned is required")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	assignInput := AssignIssueInput{}
+	if parsedArgs.has("me") {
+		myself, err := jc.GetMyself()
+		if err != nil {
+			return err
+		}
+
+		assignInput.AccountID = &myself.AccountID
+	} else if parsedArgs.has("account-id") {
+		accountID := parsedArgs.first("account-id")
+		assignInput.AccountID = &accountID
+	}
+
+	issueKey := parsedArgs.positionals[0]
+	if err := jc.AssignIssue(issueKey, assignInput); err != nil {
+		return err
+	}
+
+	issue, err := jc.GetIssue(issueKey)
+	if err != nil {
+		return err
+	}
+
+	assigneeName := "Unassigned"
+	if issue.Fields.Assignee != nil {
+		assigneeName = issue.Fields.Assignee.DisplayName
+	}
+
+	fmt.Fprintln(cli.stdout, "Issue: "+issue.Key)
+	fmt.Fprintln(cli.stdout, "Assignee: "+assigneeName)
+	return nil
 }
 
 func (cli CLI) runIssueCommentAdd(args []string) error {
