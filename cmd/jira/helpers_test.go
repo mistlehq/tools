@@ -87,6 +87,9 @@ func setupCommandEnvironment(t *testing.T) Environment {
 	}
 }
 
+// The Jira test tenant is currently fixed, so tests derive project and issue
+// type from a stable seed issue and then create isolated per-test issues from
+// that template.
 const jiraTestTemplateIssueKey = "KAN-1"
 
 type jiraTestIssueTemplate struct {
