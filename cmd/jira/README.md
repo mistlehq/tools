@@ -46,9 +46,7 @@ jira issue
 Status changes, assignment, comments, and ordinary field edits are intentionally
 separate command families because Jira exposes them as separate API operations.
 
-This branch also adds nested help pages for the issue command families. Those
-help pages make the CLI more discoverable without changing the supported write
-operations yet:
+Additional issue help pages make the command families easier to discover:
 
 ```sh
 jira issue comment help
