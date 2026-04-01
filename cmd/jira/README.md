@@ -6,7 +6,7 @@ CLI for Jira Cloud.
 
 `jira` is a standalone command-line interface for Jira Cloud.
 
-The CLI covers the common Jira workflows needed by Mistle users and provider integrations, including:
+The CLI covers common Jira workflows needed by Mistle users and provider integrations, including:
 
 - identity checks
 - project discovery
@@ -52,19 +52,13 @@ The supported commands are:
 
 ### Discovery
 
-The CLI groups commands under `auth`, `project`, and `issue`. Use the top-level help to discover the available command families:
+The CLI groups commands under `auth`, `project`, and `issue`. Use help to discover the available command families:
 
 ```sh
 jira help
 jira auth help
 jira project help
 jira issue help
-
-Status changes, assignment, comments, and ordinary field edits are intentionally separate command families because Jira exposes them as separate API operations.
-
-Additional issue help pages make the command families easier to discover:
-
-```sh
 jira issue comment help
 jira issue assign help
 jira issue transition help
@@ -72,20 +66,13 @@ jira issue update help
 jira issue editmeta help
 ```
 
-Status changes, assignment, comments, and ordinary field edits are intentionally
-separate command families because Jira exposes them as separate API operations.
+Status changes, assignment, comments, and ordinary field edits are intentionally separate command families because Jira exposes them as separate API operations.
 
 ## Auth Scopes
 
-For this README, permissions means Atlassian auth scopes for OAuth 2.0 and
-scoped API tokens. Jira project permissions like Browse projects, Edit issues,
-Add comments, and Transition issues are separate runtime requirements and only
-appear in notes when they explain a likely failure mode.
+For this README, permissions means Atlassian auth scopes for OAuth 2.0 and scoped API tokens. Jira project permissions like Browse projects, Edit issues, Add comments, and Transition issues are separate runtime requirements and only appear in notes when they explain a likely failure mode.
 
-The tables below map commands to the Jira REST endpoints they call. For commands
-that call more than one endpoint, the scope columns show the union of those
-endpoints. Some Atlassian docs pages collapse long granular scope lists in the
-UI; those rows are marked accordingly.
+The tables below map commands to the Jira REST endpoints they call. For commands that call more than one endpoint, the scope columns show the union of those endpoints. Some Atlassian docs pages collapse long granular scope lists in the UI; those rows are marked accordingly.
 
 ### Local Commands
 
