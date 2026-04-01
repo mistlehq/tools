@@ -6,7 +6,7 @@ import (
 )
 
 func TestIssueTransitionList(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "transition", "list", "KAN-1")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "transition", "list", "KAN-1")
 	output := strings.TrimSpace(commandResult.stdout.String())
 	lines := strings.Split(output, "\n")
 
@@ -25,7 +25,7 @@ func TestIssueTransitionList(t *testing.T) {
 }
 
 func TestIssueTransitionByID(t *testing.T) {
-	listResult := setupAndRunCommand(t, "jira", "issue", "transition", "list", "KAN-1")
+	listResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "transition", "list", "KAN-1")
 	output := strings.TrimSpace(listResult.stdout.String())
 	lines := strings.Split(output, "\n")
 	if len(lines) < 2 {
@@ -37,7 +37,7 @@ func TestIssueTransitionByID(t *testing.T) {
 		t.Fatalf("expected transition row to have 3 columns, got %q", lines[1])
 	}
 
-	commandResult := setupAndRunCommand(t, "jira", "issue", "transition", "KAN-1", "--to-id", transitionColumns[0])
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "transition", "KAN-1", "--to-id", transitionColumns[0])
 	transitionOutput := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(transitionOutput, "Transition: "+transitionColumns[1]) {
@@ -46,7 +46,7 @@ func TestIssueTransitionByID(t *testing.T) {
 }
 
 func TestIssueTransitionByName(t *testing.T) {
-	listResult := setupAndRunCommand(t, "jira", "issue", "transition", "list", "KAN-1")
+	listResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "transition", "list", "KAN-1")
 	output := strings.TrimSpace(listResult.stdout.String())
 	lines := strings.Split(output, "\n")
 	if len(lines) < 2 {
@@ -58,7 +58,7 @@ func TestIssueTransitionByName(t *testing.T) {
 		t.Fatalf("expected transition row to have 3 columns, got %q", lines[1])
 	}
 
-	commandResult := setupAndRunCommand(t, "jira", "issue", "transition", "KAN-1", "--to", transitionColumns[1])
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "transition", "KAN-1", "--to", transitionColumns[1])
 	transitionOutput := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(transitionOutput, "Transition: "+transitionColumns[1]) {
@@ -67,7 +67,7 @@ func TestIssueTransitionByName(t *testing.T) {
 }
 
 func TestIssueTransitionRejectsUnknownName(t *testing.T) {
-	_, err := runCommand(t, Environment{}, "jira", "issue", "transition", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "transition", "KAN-1")
 	if err == nil {
 		t.Fatal("expected missing transition target to fail")
 	}
@@ -78,7 +78,7 @@ func TestIssueTransitionRejectsUnknownName(t *testing.T) {
 }
 
 func TestIssueTransitionRejectsUnknownTransitionName(t *testing.T) {
-	_, err := runCommand(t, setupCommandEnvironment(t), "jira", "issue", "transition", "KAN-1", "--to", "definitely not a transition")
+	_, err := runCommandWithInput(t, setupCommandEnvironment(t), "", "jira", "issue", "transition", "KAN-1", "--to", "definitely not a transition")
 	if err == nil {
 		t.Fatal("expected unknown transition name to fail")
 	}
