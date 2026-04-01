@@ -6,8 +6,7 @@ CLI for Jira Cloud.
 
 `jira` is a standalone command-line interface for Jira Cloud.
 
-The CLI covers the common Jira workflows needed by Mistle users and provider
-integrations, including:
+The CLI covers the common Jira workflows needed by Mistle users and provider integrations, including:
 
 - identity checks
 - project discovery
@@ -33,8 +32,7 @@ The supported commands are:
 
 ### Discovery
 
-The CLI groups commands under `auth`, `project`, and `issue`. Use the top-level
-help to discover the available command families:
+The CLI groups commands under `auth`, `project`, and `issue`. Use the top-level help to discover the available command families:
 
 ```sh
 jira help
@@ -43,8 +41,7 @@ jira project
 jira issue
 ```
 
-Status changes, assignment, comments, and ordinary field edits are intentionally
-separate command families because Jira exposes them as separate API operations.
+Status changes, assignment, comments, and ordinary field edits are intentionally separate command families because Jira exposes them as separate API operations.
 
 Additional issue help pages make the command families easier to discover:
 
