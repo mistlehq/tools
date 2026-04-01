@@ -32,7 +32,7 @@
 ## Testing Philosophy
 
 - Strict rule: do not use mocking, stubbing, faking, or simulated behavior in tests.
-- Disallowed mocking APIs include `vi.fn`, `vi.spyOn`, `vi.mock`, `jest.*`, `sinon`, `nock`, `msw`, and equivalent libraries.
+- Disallowed mocking tools include `gomock`, `testify/mock`, `mockery`, `moq`, `httpmock`, `gock`, and equivalent libraries.
 - Disallowed manual doubles include `Fake*`, `Stub*`, `Noop*`, and test-only implementations that do not match production behavior.
 - Assert observable behavior instead of call counts or interaction patterns.
 - Do not use fake timers or patched global time.
@@ -61,6 +61,6 @@
 ## Go Guidance
 
 - Prefer the standard library first.
-- Keep packages small and package-centric rather than recreating TypeScript-style folder layering.
+- Keep packages small and package-centric rather than introducing artificial service, controller, or adapter layers without a concrete need.
 - Start flat. Extract shared packages only when a second binary actually needs the same behavior.
 - Parse arguments explicitly and fail with clear error messages on invalid input.
