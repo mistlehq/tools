@@ -6,7 +6,7 @@ import (
 )
 
 func TestAuthWhoAmI(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "auth", "whoami")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "auth", "whoami")
 	stdout := commandResult.stdout
 
 	if stdout.Len() == 0 {

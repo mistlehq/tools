@@ -25,6 +25,8 @@ The supported commands are:
 - `jira issue get <key>`
 - `jira issue search '<jql query>'`
 - `jira issue comment help`
+- `jira issue comment add <issue-key> --body <text>`
+- `jira issue comment add <issue-key> --body-file <path>`
 - `jira issue assign help`
 - `jira issue transition help`
 - `jira issue update help`
@@ -86,6 +88,8 @@ jira auth whoami
 jira project list
 jira issue get PROJ-123
 jira issue search 'project = PROJ ORDER BY updated DESC'
+jira issue comment add PROJ-123 --body 'Looks good'
+jira issue comment add PROJ-123 --body-file ./comment.txt
 ```
 
 ## Build

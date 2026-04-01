@@ -6,7 +6,7 @@ import (
 )
 
 func TestTopLevelHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +22,7 @@ func TestTopLevelHelp(t *testing.T) {
 }
 
 func TestAuthHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "auth", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "auth", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestAuthHelp(t *testing.T) {
 }
 
 func TestProjectHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "project", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "project", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestProjectHelp(t *testing.T) {
 }
 
 func TestIssueHelpListsNestedFamilies(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "issue", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestIssueHelpListsNestedFamilies(t *testing.T) {
 }
 
 func TestIssueCommentHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "issue", "comment", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestIssueCommentHelp(t *testing.T) {
 }
 
 func TestIssueAssignHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "issue", "assign", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "assign", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestIssueAssignHelp(t *testing.T) {
 }
 
 func TestIssueTransitionHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "issue", "transition", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "transition", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestIssueTransitionHelp(t *testing.T) {
 }
 
 func TestIssueUpdateHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "issue", "update", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestIssueUpdateHelp(t *testing.T) {
 }
 
 func TestIssueEditMetaHelp(t *testing.T) {
-	commandResult, err := runCommand(t, Environment{}, "jira", "issue", "editmeta", "help")
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "editmeta", "help")
 	if err != nil {
 		t.Fatal(err)
 	}

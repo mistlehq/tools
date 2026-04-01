@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // Version is the current jira CLI version.
 var Version = "dev"
 
 type CLI struct {
+	stdin  io.Reader
 	stdout io.Writer
 	stderr io.Writer
 	env    Environment
@@ -191,7 +193,7 @@ func (cli CLI) runIssueComment(args []string) error {
 
 	switch args[0] {
 	case "add":
-		return fmt.Errorf("issue comment add is not implemented yet")
+		return cli.runIssueCommentAdd(args[1:])
 	default:
 		return fmt.Errorf("unsupported issue comment command: %s", args[0])
 	}
@@ -236,6 +238,91 @@ func (cli CLI) runIssueEditMeta(args []string) error {
 	}
 
 	return fmt.Errorf("issue editmeta is not implemented yet")
+}
+
+func (cli CLI) runIssueCommentAdd(args []string) error {
+	parsedArgs, err := parseArgs(args, map[string]argSpec{
+		"body": {
+			takesValue: true,
+		},
+		"body-file": {
+			takesValue: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.positionals) != 1 {
+		return fmt.Errorf("issue comment add expects exactly 1 positional argument")
+	}
+
+	bodyFlag := parsedArgs.first("body")
+	bodyFileFlag := parsedArgs.first("body-file")
+
+	body, err := cli.readTextInput("body", bodyFlag, "body-file", bodyFileFlag)
+	if err != nil {
+		return err
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	comment, err := jc.AddIssueComment(parsedArgs.positionals[0], AddCommentInput{
+		Body: body,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "Issue: "+parsedArgs.positionals[0])
+	fmt.Fprintln(cli.stdout, "Comment ID: "+comment.ID)
+	fmt.Fprintln(cli.stdout, "Author: "+comment.Author.DisplayName)
+	fmt.Fprintln(cli.stdout, "Created: "+comment.Created)
+	return nil
+}
+
+// readTextInput normalizes a mutually exclusive `--value`/`--file` pair and
+// supports `-` as stdin for file-backed input.
+func (cli CLI) readTextInput(valueFlagName string, value string, fileFlagName string, filePath string) (string, error) {
+	if value != "" && filePath != "" {
+		return "", fmt.Errorf("--%s and --%s are mutually exclusive", valueFlagName, fileFlagName)
+	}
+
+	if value == "" && filePath == "" {
+		return "", fmt.Errorf("exactly one of --%s or --%s is required", valueFlagName, fileFlagName)
+	}
+
+	if value != "" {
+		if strings.TrimSpace(value) == "" {
+			return "", fmt.Errorf("--%s must not be empty", valueFlagName)
+		}
+
+		return value, nil
+	}
+
+	var body []byte
+	var err error
+
+	switch filePath {
+	case "-":
+		body, err = io.ReadAll(cli.stdin)
+	default:
+		body, err = os.ReadFile(filePath)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	text := string(body)
+	if strings.TrimSpace(text) == "" {
+		return "", fmt.Errorf("--%s must not be empty", fileFlagName)
+	}
+
+	return text, nil
 }
 
 func (cli CLI) runIssueGet(jc JiraClient, args []string) error {
@@ -407,6 +494,7 @@ func (cli CLI) printHelp() {
 
 func main() {
 	cli := CLI{
+		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
 		env:    loadEnvironment(),
