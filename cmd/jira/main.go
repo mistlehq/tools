@@ -15,6 +15,15 @@ type CLI struct {
 	env    Environment
 }
 
+func (cli CLI) jiraClient() (JiraClient, error) {
+	config, err := loadConfig(cli.env)
+	if err != nil {
+		return JiraClient{}, err
+	}
+
+	return NewJiraClient(config), nil
+}
+
 func (cli CLI) run(args []string) error {
 	if len(args) < 2 {
 		cli.printHelp()
@@ -40,21 +49,18 @@ func (cli CLI) run(args []string) error {
 }
 
 func (cli CLI) runAuth(args []string) error {
-	if len(args) == 0 {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		cli.printAuthHelp()
 		return nil
 	}
 
-	config, err := loadConfig(cli.env)
-
-	if err != nil {
-		return err
-	}
-
-	jc := NewJiraClient(config)
-
 	switch args[0] {
 	case "whoami":
+		jc, err := cli.jiraClient()
+		if err != nil {
+			return err
+		}
+
 		return cli.runAuthWhoAmI(jc, args[1:])
 	default:
 		return fmt.Errorf("unsupported auth command: %s", args[0])
@@ -80,25 +86,29 @@ func (cli CLI) runAuthWhoAmI(jc JiraClient, args []string) error {
 func (cli CLI) printAuthHelp() {
 	fmt.Fprintln(cli.stdout, "jira auth")
 	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Inspect Jira authentication state.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira auth help")
+	fmt.Fprintln(cli.stdout, "  jira auth whoami")
+	fmt.Fprintln(cli.stdout, "")
 	fmt.Fprintln(cli.stdout, "Commands:")
 	fmt.Fprintln(cli.stdout, "  whoami")
 }
 
 func (cli CLI) runProject(args []string) error {
-	if len(args) == 0 {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		cli.printProjectHelp()
 		return nil
 	}
 
-	config, err := loadConfig(cli.env)
-	if err != nil {
-		return err
-	}
-
-	jc := NewJiraClient(config)
-
 	switch args[0] {
 	case "list":
+		jc, err := cli.jiraClient()
+		if err != nil {
+			return err
+		}
+
 		return cli.runProjectList(jc, args[1:])
 	default:
 		return fmt.Errorf("unsupported project command: %s", args[0])
@@ -127,31 +137,105 @@ func (cli CLI) runProjectList(jc JiraClient, args []string) error {
 func (cli CLI) printProjectHelp() {
 	fmt.Fprintln(cli.stdout, "jira project")
 	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Inspect Jira projects.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira project help")
+	fmt.Fprintln(cli.stdout, "  jira project list")
+	fmt.Fprintln(cli.stdout, "")
 	fmt.Fprintln(cli.stdout, "Commands:")
 	fmt.Fprintln(cli.stdout, "  list")
 }
 
 func (cli CLI) runIssue(args []string) error {
-	if len(args) == 0 {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		cli.printIssueHelp()
 		return nil
 	}
 
-	config, err := loadConfig(cli.env)
-	if err != nil {
-		return err
-	}
-
-	jc := NewJiraClient(config)
-
 	switch args[0] {
 	case "get":
+		jc, err := cli.jiraClient()
+		if err != nil {
+			return err
+		}
+
 		return cli.runIssueGet(jc, args[1:])
 	case "search":
+		jc, err := cli.jiraClient()
+		if err != nil {
+			return err
+		}
+
 		return cli.runIssueSearch(jc, args[1:])
+	case "comment":
+		return cli.runIssueComment(args[1:])
+	case "assign":
+		return cli.runIssueAssign(args[1:])
+	case "transition":
+		return cli.runIssueTransition(args[1:])
+	case "update":
+		return cli.runIssueUpdate(args[1:])
+	case "editmeta":
+		return cli.runIssueEditMeta(args[1:])
 	default:
 		return fmt.Errorf("unsupported issue command: %s", args[0])
 	}
+}
+
+func (cli CLI) runIssueComment(args []string) error {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		cli.printIssueCommentHelp()
+		return nil
+	}
+
+	switch args[0] {
+	case "add":
+		return fmt.Errorf("issue comment add is not implemented yet")
+	default:
+		return fmt.Errorf("unsupported issue comment command: %s", args[0])
+	}
+}
+
+func (cli CLI) runIssueAssign(args []string) error {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		cli.printIssueAssignHelp()
+		return nil
+	}
+
+	return fmt.Errorf("issue assign is not implemented yet")
+}
+
+func (cli CLI) runIssueTransition(args []string) error {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		cli.printIssueTransitionHelp()
+		return nil
+	}
+
+	switch args[0] {
+	case "list":
+		return fmt.Errorf("issue transition list is not implemented yet")
+	default:
+		return fmt.Errorf("issue transition is not implemented yet")
+	}
+}
+
+func (cli CLI) runIssueUpdate(args []string) error {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		cli.printIssueUpdateHelp()
+		return nil
+	}
+
+	return fmt.Errorf("issue update is not implemented yet")
+}
+
+func (cli CLI) runIssueEditMeta(args []string) error {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		cli.printIssueEditMetaHelp()
+		return nil
+	}
+
+	return fmt.Errorf("issue editmeta is not implemented yet")
 }
 
 func (cli CLI) runIssueGet(jc JiraClient, args []string) error {
@@ -194,13 +278,124 @@ func (cli CLI) runIssueSearch(jc JiraClient, args []string) error {
 func (cli CLI) printIssueHelp() {
 	fmt.Fprintln(cli.stdout, "jira issue")
 	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Inspect and mutate Jira issues.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira issue help")
+	fmt.Fprintln(cli.stdout, "  jira issue get <issue-key>")
+	fmt.Fprintln(cli.stdout, "  jira issue search '<jql query>'")
+	fmt.Fprintln(cli.stdout, "  jira issue comment help")
+	fmt.Fprintln(cli.stdout, "  jira issue assign help")
+	fmt.Fprintln(cli.stdout, "  jira issue transition help")
+	fmt.Fprintln(cli.stdout, "  jira issue update help")
+	fmt.Fprintln(cli.stdout, "  jira issue editmeta help")
+	fmt.Fprintln(cli.stdout, "")
 	fmt.Fprintln(cli.stdout, "Commands:")
 	fmt.Fprintln(cli.stdout, "  get")
 	fmt.Fprintln(cli.stdout, "  search")
+	fmt.Fprintln(cli.stdout, "  comment")
+	fmt.Fprintln(cli.stdout, "  assign")
+	fmt.Fprintln(cli.stdout, "  transition")
+	fmt.Fprintln(cli.stdout, "  update")
+	fmt.Fprintln(cli.stdout, "  editmeta")
+}
+
+func (cli CLI) printIssueCommentHelp() {
+	fmt.Fprintln(cli.stdout, "jira issue comment")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Add comments to Jira issues.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira issue comment help")
+	fmt.Fprintln(cli.stdout, "  jira issue comment add <issue-key> --body <text>")
+	fmt.Fprintln(cli.stdout, "  jira issue comment add <issue-key> --body-file <path>")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Commands:")
+	fmt.Fprintln(cli.stdout, "  add")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Examples:")
+	fmt.Fprintln(cli.stdout, "  jira issue comment add PROJ-123 --body 'Looks good'")
+	fmt.Fprintln(cli.stdout, "  jira issue comment add PROJ-123 --body-file ./comment.txt")
+}
+
+func (cli CLI) printIssueAssignHelp() {
+	fmt.Fprintln(cli.stdout, "jira issue assign")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Assign Jira issues.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira issue assign help")
+	fmt.Fprintln(cli.stdout, "  jira issue assign <issue-key> --me")
+	fmt.Fprintln(cli.stdout, "  jira issue assign <issue-key> --account-id <account-id>")
+	fmt.Fprintln(cli.stdout, "  jira issue assign <issue-key> --unassigned")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Examples:")
+	fmt.Fprintln(cli.stdout, "  jira issue assign PROJ-123 --me")
+	fmt.Fprintln(cli.stdout, "  jira issue assign PROJ-123 --account-id 712020:abc123")
+}
+
+func (cli CLI) printIssueTransitionHelp() {
+	fmt.Fprintln(cli.stdout, "jira issue transition")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Move Jira issues through workflow transitions.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira issue transition help")
+	fmt.Fprintln(cli.stdout, "  jira issue transition list <issue-key>")
+	fmt.Fprintln(cli.stdout, "  jira issue transition <issue-key> --to <transition-name>")
+	fmt.Fprintln(cli.stdout, "  jira issue transition <issue-key> --to-id <transition-id>")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Examples:")
+	fmt.Fprintln(cli.stdout, "  jira issue transition list PROJ-123")
+	fmt.Fprintln(cli.stdout, "  jira issue transition PROJ-123 --to 'In Progress'")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Notes:")
+	fmt.Fprintln(cli.stdout, "  Use 'jira issue update' for summary and description changes.")
+}
+
+func (cli CLI) printIssueUpdateHelp() {
+	fmt.Fprintln(cli.stdout, "jira issue update")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Update editable Jira issue fields.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira issue update help")
+	fmt.Fprintln(cli.stdout, "  jira issue update <issue-key> --summary <text>")
+	fmt.Fprintln(cli.stdout, "  jira issue update <issue-key> --description <text>")
+	fmt.Fprintln(cli.stdout, "  jira issue update <issue-key> --description-file <path>")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Examples:")
+	fmt.Fprintln(cli.stdout, "  jira issue update PROJ-123 --summary 'Tighten validation'")
+	fmt.Fprintln(cli.stdout, "  jira issue update PROJ-123 --description-file ./description.txt")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Notes:")
+	fmt.Fprintln(cli.stdout, "  Status changes use 'jira issue transition'.")
+}
+
+func (cli CLI) printIssueEditMetaHelp() {
+	fmt.Fprintln(cli.stdout, "jira issue editmeta")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Show which Jira issue fields are editable.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira issue editmeta help")
+	fmt.Fprintln(cli.stdout, "  jira issue editmeta <issue-key>")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Examples:")
+	fmt.Fprintln(cli.stdout, "  jira issue editmeta PROJ-123")
 }
 
 func (cli CLI) printHelp() {
 	fmt.Fprintln(cli.stdout, "jira")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "CLI for Jira Cloud.")
+	fmt.Fprintln(cli.stdout, "")
+	fmt.Fprintln(cli.stdout, "Usage:")
+	fmt.Fprintln(cli.stdout, "  jira help")
+	fmt.Fprintln(cli.stdout, "  jira version")
+	fmt.Fprintln(cli.stdout, "  jira auth help")
+	fmt.Fprintln(cli.stdout, "  jira project help")
+	fmt.Fprintln(cli.stdout, "  jira issue help")
 	fmt.Fprintln(cli.stdout, "")
 	fmt.Fprintln(cli.stdout, "Commands:")
 	fmt.Fprintln(cli.stdout, "  help")

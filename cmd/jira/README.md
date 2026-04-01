@@ -24,6 +24,34 @@ The supported commands are:
 - `jira project list`
 - `jira issue get <key>`
 - `jira issue search '<jql query>'`
+- `jira issue comment help`
+- `jira issue assign help`
+- `jira issue transition help`
+- `jira issue update help`
+- `jira issue editmeta help`
+
+### Discovery
+
+The CLI groups commands under `auth`, `project`, and `issue`. Use the top-level help to discover the available command families:
+
+```sh
+jira help
+jira auth
+jira project
+jira issue
+```
+
+Status changes, assignment, comments, and ordinary field edits are intentionally separate command families because Jira exposes them as separate API operations.
+
+Additional issue help pages make the command families easier to discover:
+
+```sh
+jira issue comment help
+jira issue assign help
+jira issue transition help
+jira issue update help
+jira issue editmeta help
+```
 
 ### Discovery
 
