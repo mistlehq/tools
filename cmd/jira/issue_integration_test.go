@@ -6,7 +6,7 @@ import (
 )
 
 func TestIssueGet(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "get", "KAN-1")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "get", "KAN-1")
 	stdout := commandResult.stdout
 
 	if stdout.Len() == 0 {
@@ -40,7 +40,7 @@ func TestIssueGet(t *testing.T) {
 }
 
 func TestIssueSearch(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "search", "issuekey = KAN-1")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "search", "issuekey = KAN-1")
 	stdout := commandResult.stdout
 
 	if stdout.Len() == 0 {

@@ -8,7 +8,7 @@ import (
 )
 
 func TestIssueCommentAddWithBody(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "comment", "add", "KAN-1", "--body", "comment from integration test")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "comment", "add", "KAN-1", "--body", "comment from integration test")
 	output := strings.TrimSpace(commandResult.stdout.String())
 	lines := strings.Split(output, "\n")
 
@@ -40,7 +40,7 @@ func TestIssueCommentAddWithBodyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	commandResult := setupAndRunCommand(t, "jira", "issue", "comment", "add", "KAN-1", "--body-file", commentFile)
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "comment", "add", "KAN-1", "--body-file", commentFile)
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Comment ID: ") {
@@ -58,7 +58,7 @@ func TestIssueCommentAddWithStdin(t *testing.T) {
 }
 
 func TestIssueCommentAddRequiresSingleBodySource(t *testing.T) {
-	_, err := runCommand(t, Environment{}, "jira", "issue", "comment", "add", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "add", "KAN-1")
 	if err == nil {
 		t.Fatal("expected missing body source to fail")
 	}
@@ -69,7 +69,7 @@ func TestIssueCommentAddRequiresSingleBodySource(t *testing.T) {
 }
 
 func TestIssueCommentAddRejectsConflictingBodyFlags(t *testing.T) {
-	_, err := runCommand(t, Environment{}, "jira", "issue", "comment", "add", "KAN-1", "--body", "a", "--body-file", "comment.txt")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "add", "KAN-1", "--body", "a", "--body-file", "comment.txt")
 	if err == nil {
 		t.Fatal("expected conflicting body flags to fail")
 	}

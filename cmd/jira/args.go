@@ -23,6 +23,8 @@ func (parsed parsedArgs) first(name string) string {
 	return values[0]
 }
 
+// parseArgs accepts interleaved positionals and GNU-style flags in either
+// `--name value` or `--name=value` form.
 func parseArgs(args []string, specs map[string]argSpec) (parsedArgs, error) {
 	parsed := parsedArgs{
 		flags: make(map[string][]string),

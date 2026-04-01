@@ -22,10 +22,6 @@ type commandResult struct {
 	stderr bytes.Buffer
 }
 
-func runCommand(t *testing.T, env Environment, args ...string) (commandResult, error) {
-	return runCommandWithInput(t, env, "", args...)
-}
-
 func runCommandWithInput(t *testing.T, env Environment, input string, args ...string) (commandResult, error) {
 	t.Helper()
 
@@ -44,10 +40,6 @@ func runCommandWithInput(t *testing.T, env Environment, input string, args ...st
 		stdout: stdout,
 		stderr: stderr,
 	}, err
-}
-
-func setupAndRunCommand(t *testing.T, args ...string) commandResult {
-	return setupAndRunCommandWithInput(t, "", args...)
 }
 
 func setupAndRunCommandWithInput(t *testing.T, input string, args ...string) commandResult {

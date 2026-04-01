@@ -284,6 +284,8 @@ func (cli CLI) runIssueCommentAdd(args []string) error {
 	return nil
 }
 
+// readTextInput normalizes a mutually exclusive `--value`/`--file` pair and
+// supports `-` as stdin for file-backed input.
 func (cli CLI) readTextInput(valueFlagName string, value string, fileFlagName string, filePath string) (string, error) {
 	if value != "" && filePath != "" {
 		return "", fmt.Errorf("--%s and --%s are mutually exclusive", valueFlagName, fileFlagName)

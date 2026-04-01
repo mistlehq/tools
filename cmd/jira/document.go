@@ -17,6 +17,8 @@ type JiraDocNode struct {
 	Content []JiraDocNode `json:"content,omitempty"`
 }
 
+// NewJiraTextDocument converts plain text into the minimal Atlassian document
+// structure needed for comment bodies.
 func NewJiraTextDocument(text string) (JiraDocument, error) {
 	if strings.TrimSpace(text) == "" {
 		return JiraDocument{}, fmt.Errorf("text document must not be empty")

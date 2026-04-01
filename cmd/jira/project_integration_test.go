@@ -6,7 +6,7 @@ import (
 )
 
 func TestProjectList(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "project", "list")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "project", "list")
 	stdout := commandResult.stdout
 
 	if stdout.Len() == 0 {
