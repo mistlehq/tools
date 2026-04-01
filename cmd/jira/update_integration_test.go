@@ -11,7 +11,7 @@ import (
 
 func TestIssueUpdateSummary(t *testing.T) {
 	summary := fmt.Sprintf("summary updated at %d", time.Now().UnixNano())
-	commandResult := setupAndRunCommand(t, "jira", "issue", "update", "KAN-1", "--summary", summary)
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "update", "KAN-1", "--summary", summary)
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Updated: summary") {
@@ -35,7 +35,7 @@ func TestIssueUpdateSummary(t *testing.T) {
 }
 
 func TestIssueUpdateDescription(t *testing.T) {
-	commandResult := setupAndRunCommand(t, "jira", "issue", "update", "KAN-1", "--description", "description updated from integration test")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "update", "KAN-1", "--description", "description updated from integration test")
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Updated: description") {
@@ -50,7 +50,7 @@ func TestIssueUpdateDescriptionFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	commandResult := setupAndRunCommand(t, "jira", "issue", "update", "KAN-1", "--description-file", descriptionFile)
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "update", "KAN-1", "--description-file", descriptionFile)
 	output := strings.TrimSpace(commandResult.stdout.String())
 
 	if !strings.Contains(output, "Updated: description") {
@@ -69,7 +69,7 @@ func TestIssueUpdateSummaryAndDescription(t *testing.T) {
 }
 
 func TestIssueUpdateRequiresAtLeastOneField(t *testing.T) {
-	_, err := runCommand(t, Environment{}, "jira", "issue", "update", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1")
 	if err == nil {
 		t.Fatal("expected update without fields to fail")
 	}
@@ -80,7 +80,7 @@ func TestIssueUpdateRequiresAtLeastOneField(t *testing.T) {
 }
 
 func TestIssueUpdateRejectsConflictingDescriptionFlags(t *testing.T) {
-	_, err := runCommand(t, Environment{}, "jira", "issue", "update", "KAN-1", "--description", "a", "--description-file", "description.txt")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--description", "a", "--description-file", "description.txt")
 	if err == nil {
 		t.Fatal("expected conflicting description flags to fail")
 	}
