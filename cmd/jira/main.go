@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/mistlehq/tools/internal/argparse"
+	"github.com/mistlehq/tools/internal/textinput"
 	"io"
 	"os"
 	"sort"
@@ -353,10 +355,10 @@ func (cli CLI) runIssueAssignSet(args []string) error {
 		return nil
 	}
 
-	parsedArgs, err := parseArgs(args, map[string]argSpec{
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
 		"me": {},
 		"account-id": {
-			takesValue: true,
+			TakesValue: true,
 		},
 		"unassigned": {},
 	})
@@ -364,20 +366,20 @@ func (cli CLI) runIssueAssignSet(args []string) error {
 		return err
 	}
 
-	if len(parsedArgs.positionals) != 1 {
+	if len(parsedArgs.Positionals) != 1 {
 		return fmt.Errorf("issue assign expects exactly 1 positional argument")
 	}
 
 	selectedFlags := 0
-	if parsedArgs.has("me") {
+	if parsedArgs.Has("me") {
 		selectedFlags++
 	}
 
-	if parsedArgs.has("account-id") {
+	if parsedArgs.Has("account-id") {
 		selectedFlags++
 	}
 
-	if parsedArgs.has("unassigned") {
+	if parsedArgs.Has("unassigned") {
 		selectedFlags++
 	}
 
@@ -391,19 +393,19 @@ func (cli CLI) runIssueAssignSet(args []string) error {
 	}
 
 	assignInput := AssignIssueInput{}
-	if parsedArgs.has("me") {
+	if parsedArgs.Has("me") {
 		myself, err := jc.GetMyself()
 		if err != nil {
 			return err
 		}
 
 		assignInput.AccountID = &myself.AccountID
-	} else if parsedArgs.has("account-id") {
-		accountID := parsedArgs.first("account-id")
+	} else if parsedArgs.Has("account-id") {
+		accountID := parsedArgs.First("account-id")
 		assignInput.AccountID = &accountID
 	}
 
-	issueKey := parsedArgs.positionals[0]
+	issueKey := parsedArgs.Positionals[0]
 	if err := jc.AssignIssue(issueKey, assignInput); err != nil {
 		return err
 	}
@@ -457,28 +459,28 @@ func (cli CLI) runIssueTransitionMove(args []string) error {
 		return nil
 	}
 
-	parsedArgs, err := parseArgs(args, map[string]argSpec{
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
 		"to": {
-			takesValue: true,
+			TakesValue: true,
 		},
 		"to-id": {
-			takesValue: true,
+			TakesValue: true,
 		},
 	})
 	if err != nil {
 		return err
 	}
 
-	if len(parsedArgs.positionals) != 1 {
+	if len(parsedArgs.Positionals) != 1 {
 		return fmt.Errorf("issue transition expects exactly 1 positional argument")
 	}
 
 	selectedFlags := 0
-	if parsedArgs.has("to") {
+	if parsedArgs.Has("to") {
 		selectedFlags++
 	}
 
-	if parsedArgs.has("to-id") {
+	if parsedArgs.Has("to-id") {
 		selectedFlags++
 	}
 
@@ -486,7 +488,7 @@ func (cli CLI) runIssueTransitionMove(args []string) error {
 		return fmt.Errorf("exactly one of --to or --to-id is required")
 	}
 
-	issueKey := parsedArgs.positionals[0]
+	issueKey := parsedArgs.Positionals[0]
 	jc, err := cli.jiraClient()
 	if err != nil {
 		return err
@@ -525,28 +527,28 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 		return nil
 	}
 
-	parsedArgs, err := parseArgs(args, map[string]argSpec{
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
 		"summary": {
-			takesValue: true,
+			TakesValue: true,
 		},
 		"description": {
-			takesValue: true,
+			TakesValue: true,
 		},
 		"description-file": {
-			takesValue: true,
+			TakesValue: true,
 		},
 	})
 	if err != nil {
 		return err
 	}
 
-	if len(parsedArgs.positionals) != 1 {
+	if len(parsedArgs.Positionals) != 1 {
 		return fmt.Errorf("issue update expects exactly 1 positional argument")
 	}
 
-	summary := parsedArgs.first("summary")
-	descriptionFlag := parsedArgs.first("description")
-	descriptionFileFlag := parsedArgs.first("description-file")
+	summary := parsedArgs.First("summary")
+	descriptionFlag := parsedArgs.First("description")
+	descriptionFileFlag := parsedArgs.First("description-file")
 
 	updatedFields := make([]string, 0, 2)
 	input := UpdateIssueInput{}
@@ -557,7 +559,7 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 	}
 
 	if descriptionFlag != "" || descriptionFileFlag != "" {
-		description, err := cli.readTextInput("description", descriptionFlag, "description-file", descriptionFileFlag)
+		description, err := textinput.Read(cli.stdin, "description", descriptionFlag, "description-file", descriptionFileFlag)
 		if err != nil {
 			return err
 		}
@@ -575,7 +577,7 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 		return err
 	}
 
-	issueKey := parsedArgs.positionals[0]
+	issueKey := parsedArgs.Positionals[0]
 	if err := jc.UpdateIssue(issueKey, input); err != nil {
 		return err
 	}
@@ -585,9 +587,9 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 	return nil
 }
 
-func selectTransition(issueKey string, transitions []JiraTransition, parsedArgs parsedArgs) (JiraTransition, error) {
-	if parsedArgs.has("to-id") {
-		transitionID := parsedArgs.first("to-id")
+func selectTransition(issueKey string, transitions []JiraTransition, parsedArgs argparse.Parsed) (JiraTransition, error) {
+	if parsedArgs.Has("to-id") {
+		transitionID := parsedArgs.First("to-id")
 		for _, transition := range transitions {
 			if transition.ID == transitionID {
 				return transition, nil
@@ -597,7 +599,7 @@ func selectTransition(issueKey string, transitions []JiraTransition, parsedArgs 
 		return JiraTransition{}, fmt.Errorf("no transition with id %q for issue %s", transitionID, issueKey)
 	}
 
-	transitionName := parsedArgs.first("to")
+	transitionName := parsedArgs.First("to")
 	matches := make([]JiraTransition, 0, len(transitions))
 	for _, transition := range transitions {
 		if transition.Name == transitionName {
@@ -621,26 +623,26 @@ func (cli CLI) runIssueCommentAdd(args []string) error {
 		return nil
 	}
 
-	parsedArgs, err := parseArgs(args, map[string]argSpec{
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
 		"body": {
-			takesValue: true,
+			TakesValue: true,
 		},
 		"body-file": {
-			takesValue: true,
+			TakesValue: true,
 		},
 	})
 	if err != nil {
 		return err
 	}
 
-	if len(parsedArgs.positionals) != 1 {
+	if len(parsedArgs.Positionals) != 1 {
 		return fmt.Errorf("issue comment add expects exactly 1 positional argument")
 	}
 
-	bodyFlag := parsedArgs.first("body")
-	bodyFileFlag := parsedArgs.first("body-file")
+	bodyFlag := parsedArgs.First("body")
+	bodyFileFlag := parsedArgs.First("body-file")
 
-	body, err := cli.readTextInput("body", bodyFlag, "body-file", bodyFileFlag)
+	body, err := textinput.Read(cli.stdin, "body", bodyFlag, "body-file", bodyFileFlag)
 	if err != nil {
 		return err
 	}
@@ -650,59 +652,18 @@ func (cli CLI) runIssueCommentAdd(args []string) error {
 		return err
 	}
 
-	comment, err := jc.AddIssueComment(parsedArgs.positionals[0], AddCommentInput{
+	comment, err := jc.AddIssueComment(parsedArgs.Positionals[0], AddCommentInput{
 		Body: body,
 	})
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintln(cli.stdout, "Issue: "+parsedArgs.positionals[0])
+	fmt.Fprintln(cli.stdout, "Issue: "+parsedArgs.Positionals[0])
 	fmt.Fprintln(cli.stdout, "Comment ID: "+comment.ID)
 	fmt.Fprintln(cli.stdout, "Author: "+comment.Author.DisplayName)
 	fmt.Fprintln(cli.stdout, "Created: "+comment.Created)
 	return nil
-}
-
-// readTextInput normalizes a mutually exclusive `--value`/`--file` pair and
-// supports `-` as stdin for file-backed input.
-func (cli CLI) readTextInput(valueFlagName string, value string, fileFlagName string, filePath string) (string, error) {
-	if value != "" && filePath != "" {
-		return "", fmt.Errorf("--%s and --%s are mutually exclusive", valueFlagName, fileFlagName)
-	}
-
-	if value == "" && filePath == "" {
-		return "", fmt.Errorf("exactly one of --%s or --%s is required", valueFlagName, fileFlagName)
-	}
-
-	if value != "" {
-		if strings.TrimSpace(value) == "" {
-			return "", fmt.Errorf("--%s must not be empty", valueFlagName)
-		}
-
-		return value, nil
-	}
-
-	var body []byte
-	var err error
-
-	switch filePath {
-	case "-":
-		body, err = io.ReadAll(cli.stdin)
-	default:
-		body, err = os.ReadFile(filePath)
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	text := string(body)
-	if strings.TrimSpace(text) == "" {
-		return "", fmt.Errorf("--%s must not be empty", fileFlagName)
-	}
-
-	return text, nil
 }
 
 func (cli CLI) runIssueGet(jc JiraClient, args []string) error {

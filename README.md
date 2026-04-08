@@ -28,6 +28,8 @@ All CLIs in this repository follow the same basic shape:
 
 - [`jira`](./cmd/jira/README.md)
   Jira CLI for Jira Cloud.
+- [`slack`](./cmd/slack/README.md)
+  Slack CLI.
 
 ## Install
 
