@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -68,6 +71,66 @@ type SlackConversationsHistory struct {
 	OK               bool                  `json:"ok"`
 	Messages         []SlackMessage        `json:"messages"`
 	ResponseMetadata SlackResponseMetadata `json:"response_metadata"`
+}
+
+type SlackChatMessage struct {
+	Text     string `json:"text"`
+	ThreadTS string `json:"thread_ts"`
+}
+
+type SlackChatPostMessage struct {
+	OK      bool             `json:"ok"`
+	Channel string           `json:"channel"`
+	TS      string           `json:"ts"`
+	Message SlackChatMessage `json:"message"`
+}
+
+type SlackChatUpdate struct {
+	OK      bool             `json:"ok"`
+	Channel string           `json:"channel"`
+	TS      string           `json:"ts"`
+	Text    string           `json:"text"`
+	Message SlackChatMessage `json:"message"`
+}
+
+type SlackChatDelete struct {
+	OK      bool   `json:"ok"`
+	Channel string `json:"channel"`
+	TS      string `json:"ts"`
+}
+
+type SlackChatGetPermalink struct {
+	OK        bool   `json:"ok"`
+	Channel   string `json:"channel"`
+	Permalink string `json:"permalink"`
+}
+
+type SlackReactionResponse struct {
+	OK bool `json:"ok"`
+}
+
+type SlackEmojiList struct {
+	OK         bool              `json:"ok"`
+	Emoji      map[string]string `json:"emoji"`
+	Categories json.RawMessage   `json:"categories,omitempty"`
+}
+
+type SlackFile struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Title     string `json:"title"`
+	Permalink string `json:"permalink"`
+}
+
+type SlackFilesGetUploadURLExternal struct {
+	OK        bool   `json:"ok"`
+	UploadURL string `json:"upload_url"`
+	FileID    string `json:"file_id"`
+}
+
+type SlackFilesCompleteUploadExternal struct {
+	OK    bool        `json:"ok"`
+	Files []SlackFile `json:"files"`
 }
 
 func NewSlackClient(config Config) SlackClient {
@@ -150,6 +213,72 @@ func (sc SlackClient) get(method string, query url.Values) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	response, err := sc.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode == http.StatusTooManyRequests {
+		retryAfter := response.Header.Get("Retry-After")
+		if retryAfter != "" {
+			return nil, fmt.Errorf("slack api %s: rate limited, retry after %s seconds", strings.TrimPrefix(method, "/"), retryAfter)
+		}
+
+		return nil, fmt.Errorf("slack api %s: rate limited", strings.TrimPrefix(method, "/"))
+	}
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("request failed with status %d: %s", response.StatusCode, string(responseBody))
+	}
+
+	var envelope slackResponseEnvelope
+	if err := json.Unmarshal(responseBody, &envelope); err != nil {
+		return nil, err
+	}
+
+	if !envelope.OK {
+		return nil, fmt.Errorf("slack api %s: %s", strings.TrimPrefix(method, "/"), envelope.Error)
+	}
+
+	return responseBody, nil
+}
+
+func (sc SlackClient) postMultipart(method string, values map[string]string) ([]byte, error) {
+	if !strings.HasPrefix(method, "/") {
+		return nil, fmt.Errorf("method path must start with '/': %s", method)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, value := range values {
+		if err := writer.WriteField(key, value); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		sc.baseURL+method,
+		&body,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", writer.FormDataContentType())
 
 	response, err := sc.client.Do(request)
 	if err != nil {
@@ -310,4 +439,276 @@ func (sc SlackClient) GetConversationHistory(input SlackConversationsHistoryInpu
 	}
 
 	return history, nil
+}
+
+type SlackChatPostMessageInput struct {
+	Channel  string  `json:"channel"`
+	Text     string  `json:"text"`
+	ThreadTS *string `json:"thread_ts,omitempty"`
+}
+
+func (sc SlackClient) PostMessage(input SlackChatPostMessageInput) (SlackChatPostMessage, error) {
+	requestBody, err := json.Marshal(input)
+	if err != nil {
+		return SlackChatPostMessage{}, err
+	}
+
+	responseBody, err := sc.post("/chat.postMessage", requestBody)
+	if err != nil {
+		return SlackChatPostMessage{}, err
+	}
+
+	var posted SlackChatPostMessage
+	if err := json.Unmarshal(responseBody, &posted); err != nil {
+		return SlackChatPostMessage{}, err
+	}
+
+	return posted, nil
+}
+
+type SlackChatUpdateInput struct {
+	Channel string `json:"channel"`
+	TS      string `json:"ts"`
+	Text    string `json:"text"`
+}
+
+func (sc SlackClient) UpdateMessage(input SlackChatUpdateInput) (SlackChatUpdate, error) {
+	requestBody, err := json.Marshal(input)
+	if err != nil {
+		return SlackChatUpdate{}, err
+	}
+
+	responseBody, err := sc.post("/chat.update", requestBody)
+	if err != nil {
+		return SlackChatUpdate{}, err
+	}
+
+	var updated SlackChatUpdate
+	if err := json.Unmarshal(responseBody, &updated); err != nil {
+		return SlackChatUpdate{}, err
+	}
+
+	return updated, nil
+}
+
+type SlackChatDeleteInput struct {
+	Channel string `json:"channel"`
+	TS      string `json:"ts"`
+}
+
+func (sc SlackClient) DeleteMessage(input SlackChatDeleteInput) (SlackChatDelete, error) {
+	requestBody, err := json.Marshal(input)
+	if err != nil {
+		return SlackChatDelete{}, err
+	}
+
+	responseBody, err := sc.post("/chat.delete", requestBody)
+	if err != nil {
+		return SlackChatDelete{}, err
+	}
+
+	var deleted SlackChatDelete
+	if err := json.Unmarshal(responseBody, &deleted); err != nil {
+		return SlackChatDelete{}, err
+	}
+
+	return deleted, nil
+}
+
+func (sc SlackClient) GetPermalink(channel string, messageTS string) (SlackChatGetPermalink, error) {
+	query := url.Values{}
+	query.Set("channel", channel)
+	query.Set("message_ts", messageTS)
+
+	responseBody, err := sc.get("/chat.getPermalink", query)
+	if err != nil {
+		return SlackChatGetPermalink{}, err
+	}
+
+	var permalink SlackChatGetPermalink
+	if err := json.Unmarshal(responseBody, &permalink); err != nil {
+		return SlackChatGetPermalink{}, err
+	}
+
+	return permalink, nil
+}
+
+type SlackReactionInput struct {
+	Channel   string `json:"channel"`
+	Timestamp string `json:"timestamp"`
+	Name      string `json:"name"`
+}
+
+func (sc SlackClient) AddReaction(input SlackReactionInput) (SlackReactionResponse, error) {
+	requestBody, err := json.Marshal(input)
+	if err != nil {
+		return SlackReactionResponse{}, err
+	}
+
+	responseBody, err := sc.post("/reactions.add", requestBody)
+	if err != nil {
+		return SlackReactionResponse{}, err
+	}
+
+	var response SlackReactionResponse
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return SlackReactionResponse{}, err
+	}
+
+	return response, nil
+}
+
+func (sc SlackClient) RemoveReaction(input SlackReactionInput) (SlackReactionResponse, error) {
+	requestBody, err := json.Marshal(input)
+	if err != nil {
+		return SlackReactionResponse{}, err
+	}
+
+	responseBody, err := sc.post("/reactions.remove", requestBody)
+	if err != nil {
+		return SlackReactionResponse{}, err
+	}
+
+	var response SlackReactionResponse
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return SlackReactionResponse{}, err
+	}
+
+	return response, nil
+}
+
+func (sc SlackClient) ListEmoji(includeCategories bool) (SlackEmojiList, error) {
+	query := url.Values{}
+	if includeCategories {
+		query.Set("include_categories", "true")
+	}
+
+	responseBody, err := sc.get("/emoji.list", query)
+	if err != nil {
+		return SlackEmojiList{}, err
+	}
+
+	var list SlackEmojiList
+	if err := json.Unmarshal(responseBody, &list); err != nil {
+		return SlackEmojiList{}, err
+	}
+
+	return list, nil
+}
+
+type SlackFilesUploadInput struct {
+	Path           string
+	Channel        string
+	ThreadTS       string
+	InitialComment string
+}
+
+func (sc SlackClient) UploadFile(input SlackFilesUploadInput) (SlackFilesCompleteUploadExternal, error) {
+	fileBytes, err := os.ReadFile(input.Path)
+	if err != nil {
+		return SlackFilesCompleteUploadExternal{}, err
+	}
+
+	filename := filepath.Base(input.Path)
+	getUpload, err := sc.getUploadURLExternal(filename, len(fileBytes))
+	if err != nil {
+		return SlackFilesCompleteUploadExternal{}, err
+	}
+
+	if err := sc.uploadFileBytes(getUpload.UploadURL, fileBytes); err != nil {
+		return SlackFilesCompleteUploadExternal{}, err
+	}
+
+	return sc.completeUploadExternal(getUpload.FileID, filename, input)
+}
+
+func (sc SlackClient) getUploadURLExternal(filename string, length int) (SlackFilesGetUploadURLExternal, error) {
+	responseBody, err := sc.postMultipart("/files.getUploadURLExternal", map[string]string{
+		"filename": filename,
+		"length":   fmt.Sprintf("%d", length),
+	})
+	if err != nil {
+		return SlackFilesGetUploadURLExternal{}, err
+	}
+
+	var response SlackFilesGetUploadURLExternal
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return SlackFilesGetUploadURLExternal{}, err
+	}
+
+	return response, nil
+}
+
+func (sc SlackClient) uploadFileBytes(uploadURL string, fileBytes []byte) error {
+	request, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		uploadURL,
+		bytes.NewReader(fileBytes),
+	)
+	if err != nil {
+		return err
+	}
+
+	request.Header.Set("Content-Type", "application/octet-stream")
+
+	response, err := sc.client.Do(request)
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("file upload failed with status %d: %s", response.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func (sc SlackClient) completeUploadExternal(fileID string, filename string, input SlackFilesUploadInput) (SlackFilesCompleteUploadExternal, error) {
+	filesValue, err := json.Marshal([]map[string]string{{
+		"id":    fileID,
+		"title": filename,
+	}})
+	if err != nil {
+		return SlackFilesCompleteUploadExternal{}, err
+	}
+
+	values := map[string]string{
+		"files":      string(filesValue),
+		"channel_id": input.Channel,
+	}
+
+	if input.InitialComment != "" {
+		values["initial_comment"] = input.InitialComment
+	}
+
+	if input.ThreadTS != "" {
+		values["thread_ts"] = input.ThreadTS
+	}
+
+	responseBody, err := sc.postMultipart("/files.completeUploadExternal", values)
+	if err != nil {
+		return SlackFilesCompleteUploadExternal{}, err
+	}
+
+	var response SlackFilesCompleteUploadExternal
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return SlackFilesCompleteUploadExternal{}, err
+	}
+
+	return response, nil
+}
+
+func (sc SlackClient) DeleteFile(fileID string) error {
+	_, err := sc.postMultipart("/files.delete", map[string]string{
+		"file": fileID,
+	})
+	return err
 }

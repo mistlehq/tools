@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mistlehq/tools/internal/argparse"
+	"github.com/mistlehq/tools/internal/textinput"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -106,7 +108,23 @@ func (cli CLI) runChat(args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf("unsupported chat command: %s", args[0])
+	sc, err := cli.slackClient()
+	if err != nil {
+		return err
+	}
+
+	switch args[0] {
+	case "post-message":
+		return cli.runChatPostMessage(sc, args[1:])
+	case "update":
+		return cli.runChatUpdate(sc, args[1:])
+	case "delete":
+		return cli.runChatDelete(sc, args[1:])
+	case "get-permalink":
+		return cli.runChatGetPermalink(sc, args[1:])
+	default:
+		return fmt.Errorf("unsupported chat command: %s", args[0])
+	}
 }
 
 func (cli CLI) runReactions(args []string) error {
@@ -115,7 +133,19 @@ func (cli CLI) runReactions(args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf("unsupported reactions command: %s", args[0])
+	sc, err := cli.slackClient()
+	if err != nil {
+		return err
+	}
+
+	switch args[0] {
+	case "add":
+		return cli.runReactionsAdd(sc, args[1:])
+	case "remove":
+		return cli.runReactionsRemove(sc, args[1:])
+	default:
+		return fmt.Errorf("unsupported reactions command: %s", args[0])
+	}
 }
 
 func (cli CLI) runFiles(args []string) error {
@@ -124,7 +154,17 @@ func (cli CLI) runFiles(args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf("unsupported files command: %s", args[0])
+	sc, err := cli.slackClient()
+	if err != nil {
+		return err
+	}
+
+	switch args[0] {
+	case "upload":
+		return cli.runFilesUpload(sc, args[1:])
+	default:
+		return fmt.Errorf("unsupported files command: %s", args[0])
+	}
 }
 
 func (cli CLI) runEmoji(args []string) error {
@@ -133,7 +173,17 @@ func (cli CLI) runEmoji(args []string) error {
 		return nil
 	}
 
-	return fmt.Errorf("unsupported emoji command: %s", args[0])
+	sc, err := cli.slackClient()
+	if err != nil {
+		return err
+	}
+
+	switch args[0] {
+	case "list":
+		return cli.runEmojiList(sc, args[1:])
+	default:
+		return fmt.Errorf("unsupported emoji command: %s", args[0])
+	}
 }
 
 func (cli CLI) printHelp() {
@@ -379,6 +429,188 @@ func (cli CLI) printChatHelp() {
 	fmt.Fprintln(cli.stdout, "  slack chat get-permalink --channel <conversation-id> --message-ts <ts>")
 }
 
+func (cli CLI) runChatPostMessage(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"channel":   {TakesValue: true},
+		"text":      {TakesValue: true},
+		"text-file": {TakesValue: true},
+		"thread-ts": {TakesValue: true},
+		"json":      {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("chat post-message does not accept positional arguments")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("chat post-message requires --channel")
+	}
+
+	text, err := textinput.Read(cli.stdin, "text", parsedArgs.First("text"), "text-file", parsedArgs.First("text-file"))
+	if err != nil {
+		return err
+	}
+
+	input := SlackChatPostMessageInput{
+		Channel: channel,
+		Text:    text,
+	}
+
+	if threadTS := parsedArgs.First("thread-ts"); threadTS != "" {
+		input.ThreadTS = &threadTS
+	}
+
+	posted, err := sc.PostMessage(input)
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, posted)
+	}
+
+	writeMessageResult(cli.stdout, posted.Channel, posted.TS, posted.Message.ThreadTS, posted.Message.Text)
+	return nil
+}
+
+func (cli CLI) runChatUpdate(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"channel":   {TakesValue: true},
+		"ts":        {TakesValue: true},
+		"text":      {TakesValue: true},
+		"text-file": {TakesValue: true},
+		"json":      {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("chat update does not accept positional arguments")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("chat update requires --channel")
+	}
+
+	ts := parsedArgs.First("ts")
+	if ts == "" {
+		return fmt.Errorf("chat update requires --ts")
+	}
+
+	text, err := textinput.Read(cli.stdin, "text", parsedArgs.First("text"), "text-file", parsedArgs.First("text-file"))
+	if err != nil {
+		return err
+	}
+
+	updated, err := sc.UpdateMessage(SlackChatUpdateInput{
+		Channel: channel,
+		TS:      ts,
+		Text:    text,
+	})
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, updated)
+	}
+
+	threadTS := updated.Message.ThreadTS
+	if threadTS == "" {
+		threadTS = updated.TS
+	}
+
+	writeMessageResult(cli.stdout, updated.Channel, updated.TS, threadTS, updated.Message.Text)
+	return nil
+}
+
+func (cli CLI) runChatDelete(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"channel": {TakesValue: true},
+		"ts":      {TakesValue: true},
+		"json":    {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("chat delete does not accept positional arguments")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("chat delete requires --channel")
+	}
+
+	ts := parsedArgs.First("ts")
+	if ts == "" {
+		return fmt.Errorf("chat delete requires --ts")
+	}
+
+	deleted, err := sc.DeleteMessage(SlackChatDeleteInput{
+		Channel: channel,
+		TS:      ts,
+	})
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, deleted)
+	}
+
+	fmt.Fprintln(cli.stdout, "Channel: "+deleted.Channel)
+	fmt.Fprintln(cli.stdout, "TS: "+deleted.TS)
+	fmt.Fprintln(cli.stdout, "Deleted: true")
+	return nil
+}
+
+func (cli CLI) runChatGetPermalink(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"channel":    {TakesValue: true},
+		"message-ts": {TakesValue: true},
+		"json":       {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("chat get-permalink does not accept positional arguments")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("chat get-permalink requires --channel")
+	}
+
+	messageTS := parsedArgs.First("message-ts")
+	if messageTS == "" {
+		return fmt.Errorf("chat get-permalink requires --message-ts")
+	}
+
+	permalink, err := sc.GetPermalink(channel, messageTS)
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, permalink)
+	}
+
+	fmt.Fprintln(cli.stdout, "Channel: "+channel)
+	fmt.Fprintln(cli.stdout, "Message TS: "+messageTS)
+	fmt.Fprintln(cli.stdout, "Permalink: "+permalink.Permalink)
+	return nil
+}
+
 func (cli CLI) printReactionsHelp() {
 	fmt.Fprintln(cli.stdout, "slack reactions")
 	fmt.Fprintln(cli.stdout, "")
@@ -388,6 +620,106 @@ func (cli CLI) printReactionsHelp() {
 	fmt.Fprintln(cli.stdout, "  slack reactions help")
 	fmt.Fprintln(cli.stdout, "  slack reactions add --channel <conversation-id> --timestamp <ts> --name <emoji-name>")
 	fmt.Fprintln(cli.stdout, "  slack reactions remove --channel <conversation-id> --timestamp <ts> --name <emoji-name>")
+}
+
+func (cli CLI) runReactionsAdd(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"channel":   {TakesValue: true},
+		"timestamp": {TakesValue: true},
+		"name":      {TakesValue: true},
+		"json":      {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("reactions add does not accept positional arguments")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("reactions add requires --channel")
+	}
+
+	timestamp := parsedArgs.First("timestamp")
+	if timestamp == "" {
+		return fmt.Errorf("reactions add requires --timestamp")
+	}
+
+	name := parsedArgs.First("name")
+	if name == "" {
+		return fmt.Errorf("reactions add requires --name")
+	}
+
+	response, err := sc.AddReaction(SlackReactionInput{
+		Channel:   channel,
+		Timestamp: timestamp,
+		Name:      name,
+	})
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, response)
+	}
+
+	fmt.Fprintln(cli.stdout, "Channel: "+channel)
+	fmt.Fprintln(cli.stdout, "Timestamp: "+timestamp)
+	fmt.Fprintln(cli.stdout, "Name: "+name)
+	fmt.Fprintln(cli.stdout, "Action: added")
+	return nil
+}
+
+func (cli CLI) runReactionsRemove(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"channel":   {TakesValue: true},
+		"timestamp": {TakesValue: true},
+		"name":      {TakesValue: true},
+		"json":      {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("reactions remove does not accept positional arguments")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("reactions remove requires --channel")
+	}
+
+	timestamp := parsedArgs.First("timestamp")
+	if timestamp == "" {
+		return fmt.Errorf("reactions remove requires --timestamp")
+	}
+
+	name := parsedArgs.First("name")
+	if name == "" {
+		return fmt.Errorf("reactions remove requires --name")
+	}
+
+	response, err := sc.RemoveReaction(SlackReactionInput{
+		Channel:   channel,
+		Timestamp: timestamp,
+		Name:      name,
+	})
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, response)
+	}
+
+	fmt.Fprintln(cli.stdout, "Channel: "+channel)
+	fmt.Fprintln(cli.stdout, "Timestamp: "+timestamp)
+	fmt.Fprintln(cli.stdout, "Name: "+name)
+	fmt.Fprintln(cli.stdout, "Action: removed")
+	return nil
 }
 
 func (cli CLI) printFilesHelp() {
@@ -403,6 +735,61 @@ func (cli CLI) printFilesHelp() {
 	fmt.Fprintln(cli.stdout, "  slack files upload --path <path> --channel <conversation-id> --thread-ts <ts>")
 }
 
+func (cli CLI) runFilesUpload(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"path":                 {TakesValue: true},
+		"channel":              {TakesValue: true},
+		"thread-ts":            {TakesValue: true},
+		"initial-comment":      {TakesValue: true},
+		"initial-comment-file": {TakesValue: true},
+		"json":                 {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("files upload does not accept positional arguments")
+	}
+
+	path := parsedArgs.First("path")
+	if path == "" {
+		return fmt.Errorf("files upload requires --path")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("files upload requires --channel")
+	}
+
+	initialComment, err := optionalTextInput(cli.stdin, "initial-comment", parsedArgs.First("initial-comment"), "initial-comment-file", parsedArgs.First("initial-comment-file"))
+	if err != nil {
+		return err
+	}
+
+	uploaded, err := sc.UploadFile(SlackFilesUploadInput{
+		Path:           path,
+		Channel:        channel,
+		ThreadTS:       parsedArgs.First("thread-ts"),
+		InitialComment: initialComment,
+	})
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, uploaded)
+	}
+
+	file := firstUploadedFile(uploaded)
+	fmt.Fprintln(cli.stdout, "Channel: "+channel)
+	fmt.Fprintln(cli.stdout, "Thread TS: "+parsedArgs.First("thread-ts"))
+	fmt.Fprintln(cli.stdout, "File ID: "+file.ID)
+	fmt.Fprintln(cli.stdout, "Name: "+file.Name)
+	fmt.Fprintln(cli.stdout, "Title: "+file.Title)
+	return nil
+}
+
 func (cli CLI) printEmojiHelp() {
 	fmt.Fprintln(cli.stdout, "slack emoji")
 	fmt.Fprintln(cli.stdout, "")
@@ -412,6 +799,42 @@ func (cli CLI) printEmojiHelp() {
 	fmt.Fprintln(cli.stdout, "  slack emoji help")
 	fmt.Fprintln(cli.stdout, "  slack emoji list")
 	fmt.Fprintln(cli.stdout, "  slack emoji list --include-categories")
+}
+
+func (cli CLI) runEmojiList(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"include-categories": {},
+		"json":               {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("emoji list does not accept positional arguments")
+	}
+
+	list, err := sc.ListEmoji(parsedArgs.Has("include-categories"))
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, list)
+	}
+
+	names := make([]string, 0, len(list.Emoji))
+	for name := range list.Emoji {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	fmt.Fprintln(cli.stdout, "NAME\tVALUE")
+	for _, name := range names {
+		fmt.Fprintf(cli.stdout, "%s\t%s\n", name, list.Emoji[name])
+	}
+
+	return nil
 }
 
 func main() {
@@ -505,4 +928,28 @@ func messageType(message SlackMessage) string {
 	}
 
 	return message.Type
+}
+
+func writeMessageResult(output io.Writer, channel string, ts string, threadTS string, text string) {
+	fmt.Fprintln(output, "Channel: "+channel)
+	fmt.Fprintln(output, "TS: "+ts)
+	fmt.Fprintln(output, "Thread TS: "+threadTS)
+	fmt.Fprintln(output, "Text:")
+	fmt.Fprintln(output, text)
+}
+
+func optionalTextInput(stdin io.Reader, valueFlagName string, value string, fileFlagName string, filePath string) (string, error) {
+	if value == "" && filePath == "" {
+		return "", nil
+	}
+
+	return textinput.Read(stdin, valueFlagName, value, fileFlagName, filePath)
+}
+
+func firstUploadedFile(uploaded SlackFilesCompleteUploadExternal) SlackFile {
+	if len(uploaded.Files) == 0 {
+		return SlackFile{}
+	}
+
+	return uploaded.Files[0]
 }

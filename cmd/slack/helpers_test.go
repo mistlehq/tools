@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/mistlehq/tools/internal/testproxy"
 	"os"
+	"strings"
 	"testing"
+	"time"
 )
 
 type commandResult struct {
@@ -67,4 +70,33 @@ func setupCommandEnvironment(t *testing.T) Environment {
 	return Environment{
 		"SLACK_BASE_URL": proxy.BaseURL,
 	}
+}
+
+func setupSlackClient(t *testing.T) (Environment, SlackClient) {
+	t.Helper()
+
+	env := setupCommandEnvironment(t)
+	config, err := loadConfig(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return env, NewSlackClient(config)
+}
+
+func uniqueTestMessage(prefix string) string {
+	return fmt.Sprintf("%s %d", prefix, time.Now().UnixNano())
+}
+
+func parseLineValue(t *testing.T, output string, prefix string) string {
+	t.Helper()
+
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimPrefix(line, prefix)
+		}
+	}
+
+	t.Fatalf("expected output to contain line with prefix %q, got %q", prefix, output)
+	return ""
 }
