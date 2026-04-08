@@ -6,7 +6,6 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
-    open-pull-requests-limit: 5
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -14,4 +13,3 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
-    open-pull-requests-limit: 5
