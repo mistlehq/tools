@@ -51,6 +51,7 @@ func TestConversationsHelp(t *testing.T) {
 		"slack conversations list",
 		"slack conversations info --channel <conversation-id>",
 		"slack conversations history --channel <conversation-id>",
+		"slack conversations replies --channel <conversation-id> --ts <thread-root-ts>",
 	}
 
 	for _, want := range expected {

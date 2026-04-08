@@ -73,6 +73,12 @@ type SlackConversationsHistory struct {
 	ResponseMetadata SlackResponseMetadata `json:"response_metadata"`
 }
 
+type SlackConversationsReplies struct {
+	OK               bool                  `json:"ok"`
+	Messages         []SlackMessage        `json:"messages"`
+	ResponseMetadata SlackResponseMetadata `json:"response_metadata"`
+}
+
 type SlackChatMessage struct {
 	Text     string `json:"text"`
 	ThreadTS string `json:"thread_ts"`
@@ -439,6 +445,54 @@ func (sc SlackClient) GetConversationHistory(input SlackConversationsHistoryInpu
 	}
 
 	return history, nil
+}
+
+type SlackConversationsRepliesInput struct {
+	Channel   string
+	TS        string
+	Cursor    string
+	Inclusive bool
+	Latest    string
+	Limit     string
+	Oldest    string
+}
+
+func (sc SlackClient) GetConversationReplies(input SlackConversationsRepliesInput) (SlackConversationsReplies, error) {
+	query := url.Values{}
+	query.Set("channel", input.Channel)
+	query.Set("ts", input.TS)
+
+	if input.Cursor != "" {
+		query.Set("cursor", input.Cursor)
+	}
+
+	if input.Inclusive {
+		query.Set("inclusive", "true")
+	}
+
+	if input.Latest != "" {
+		query.Set("latest", input.Latest)
+	}
+
+	if input.Limit != "" {
+		query.Set("limit", input.Limit)
+	}
+
+	if input.Oldest != "" {
+		query.Set("oldest", input.Oldest)
+	}
+
+	responseBody, err := sc.get("/conversations.replies", query)
+	if err != nil {
+		return SlackConversationsReplies{}, err
+	}
+
+	var replies SlackConversationsReplies
+	if err := json.Unmarshal(responseBody, &replies); err != nil {
+		return SlackConversationsReplies{}, err
+	}
+
+	return replies, nil
 }
 
 type SlackChatPostMessageInput struct {

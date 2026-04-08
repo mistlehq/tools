@@ -97,6 +97,8 @@ func (cli CLI) runConversations(args []string) error {
 		return cli.runConversationsInfo(sc, args[1:])
 	case "history":
 		return cli.runConversationsHistory(sc, args[1:])
+	case "replies":
+		return cli.runConversationsReplies(sc, args[1:])
 	default:
 		return fmt.Errorf("unsupported conversations command: %s", args[0])
 	}
@@ -262,6 +264,7 @@ func (cli CLI) printConversationsHelp() {
 	fmt.Fprintln(cli.stdout, "  slack conversations list [--types <csv>] [--limit <n>] [--cursor <cursor>] [--exclude-archived]")
 	fmt.Fprintln(cli.stdout, "  slack conversations info --channel <conversation-id> [--include-locale]")
 	fmt.Fprintln(cli.stdout, "  slack conversations history --channel <conversation-id> [--cursor <cursor>] [--inclusive] [--latest <ts>] [--limit <n>] [--oldest <ts>]")
+	fmt.Fprintln(cli.stdout, "  slack conversations replies --channel <conversation-id> --ts <thread-root-ts> [--cursor <cursor>] [--inclusive] [--latest <ts>] [--limit <n>] [--oldest <ts>]")
 }
 
 func (cli CLI) runConversationsList(sc SlackClient, args []string) error {
@@ -388,26 +391,71 @@ func (cli CLI) runConversationsHistory(sc SlackClient, args []string) error {
 		return writeJSON(cli.stdout, history)
 	}
 
-	for index, message := range history.Messages {
-		fmt.Fprintln(cli.stdout, "TS: "+message.TS)
-		fmt.Fprintln(cli.stdout, "Thread TS: "+message.ThreadTS)
-		fmt.Fprintln(cli.stdout, "User: "+message.User)
-		fmt.Fprintln(cli.stdout, "Type: "+messageType(message))
-		fmt.Fprintln(cli.stdout, "Text:")
-		fmt.Fprintln(cli.stdout, message.Text)
-
-		if index < len(history.Messages)-1 {
-			fmt.Fprintln(cli.stdout, "")
-		}
-	}
+	writeMessages(cli.stdout, history.Messages)
 
 	if history.ResponseMetadata.NextCursor != "" {
-		if len(history.Messages) > 0 {
-			fmt.Fprintln(cli.stdout, "")
-		}
+		writePaginationSeparator(cli.stdout, len(history.Messages) > 0)
 
 		fmt.Fprintln(cli.stdout, "Next Cursor: "+history.ResponseMetadata.NextCursor)
 		fmt.Fprintln(cli.stdout, "Next Page: "+buildConversationsHistoryNextPageCommand(parsedArgs, history.ResponseMetadata.NextCursor))
+	}
+
+	return nil
+}
+
+func (cli CLI) runConversationsReplies(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"channel":   {TakesValue: true},
+		"ts":        {TakesValue: true},
+		"cursor":    {TakesValue: true},
+		"inclusive": {},
+		"latest":    {TakesValue: true},
+		"limit":     {TakesValue: true},
+		"oldest":    {TakesValue: true},
+		"json":      {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("conversations replies does not accept positional arguments")
+	}
+
+	channel := parsedArgs.First("channel")
+	if channel == "" {
+		return fmt.Errorf("conversations replies requires --channel")
+	}
+
+	ts := parsedArgs.First("ts")
+	if ts == "" {
+		return fmt.Errorf("conversations replies requires --ts")
+	}
+
+	replies, err := sc.GetConversationReplies(SlackConversationsRepliesInput{
+		Channel:   channel,
+		TS:        ts,
+		Cursor:    parsedArgs.First("cursor"),
+		Inclusive: parsedArgs.Has("inclusive"),
+		Latest:    parsedArgs.First("latest"),
+		Limit:     parsedArgs.First("limit"),
+		Oldest:    parsedArgs.First("oldest"),
+	})
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, replies)
+	}
+
+	writeMessages(cli.stdout, replies.Messages)
+
+	if replies.ResponseMetadata.NextCursor != "" {
+		writePaginationSeparator(cli.stdout, len(replies.Messages) > 0)
+
+		fmt.Fprintln(cli.stdout, "Next Cursor: "+replies.ResponseMetadata.NextCursor)
+		fmt.Fprintln(cli.stdout, "Next Page: "+buildConversationsRepliesNextPageCommand(parsedArgs, replies.ResponseMetadata.NextCursor))
 	}
 
 	return nil
@@ -920,6 +968,58 @@ func buildConversationsHistoryNextPageCommand(parsedArgs argparse.Parsed, nextCu
 	}
 
 	return strings.Join(command, " ")
+}
+
+func buildConversationsRepliesNextPageCommand(parsedArgs argparse.Parsed, nextCursor string) string {
+	command := []string{"slack", "conversations", "replies"}
+
+	command = append(command, "--channel", parsedArgs.First("channel"))
+	command = append(command, "--ts", parsedArgs.First("ts"))
+
+	if limit := parsedArgs.First("limit"); limit != "" {
+		command = append(command, "--limit", limit)
+	}
+
+	if parsedArgs.Has("inclusive") {
+		command = append(command, "--inclusive")
+	}
+
+	if latest := parsedArgs.First("latest"); latest != "" {
+		command = append(command, "--latest", latest)
+	}
+
+	if oldest := parsedArgs.First("oldest"); oldest != "" {
+		command = append(command, "--oldest", oldest)
+	}
+
+	command = append(command, "--cursor", nextCursor)
+
+	if parsedArgs.Has("json") {
+		command = append(command, "--json")
+	}
+
+	return strings.Join(command, " ")
+}
+
+func writeMessages(output io.Writer, messages []SlackMessage) {
+	for index, message := range messages {
+		fmt.Fprintln(output, "TS: "+message.TS)
+		fmt.Fprintln(output, "Thread TS: "+message.ThreadTS)
+		fmt.Fprintln(output, "User: "+message.User)
+		fmt.Fprintln(output, "Type: "+messageType(message))
+		fmt.Fprintln(output, "Text:")
+		fmt.Fprintln(output, message.Text)
+
+		if index < len(messages)-1 {
+			fmt.Fprintln(output, "")
+		}
+	}
+}
+
+func writePaginationSeparator(output io.Writer, hasMessages bool) {
+	if hasMessages {
+		fmt.Fprintln(output, "")
+	}
 }
 
 func messageType(message SlackMessage) string {

@@ -167,3 +167,109 @@ func TestConversationsHistoryJSON(t *testing.T) {
 		t.Fatal("expected ok=true in JSON output")
 	}
 }
+
+func TestConversationsReplies(t *testing.T) {
+	env, sc := setupSlackClient(t)
+	channelID := getRequiredEnv(t, "SLACK_TEST_CHANNEL_ID")
+
+	root, replies := createTestThread(t, sc, channelID)
+	t.Cleanup(func() {
+		cleanupTestThread(t, sc, channelID, root.TS, replies)
+	})
+
+	commandResult, err := runCommandWithInput(t, env, "", "slack", "conversations", "replies", "--channel", channelID, "--ts", root.TS)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := strings.TrimSpace(commandResult.stdout.String())
+	for _, want := range []string{root.Message.Text, replies[0].Message.Text, replies[1].Message.Text} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected replies output to contain %q, got %q", want, output)
+		}
+	}
+
+	if strings.Count(output, "TS: ") < 3 {
+		t.Fatalf("expected replies output to include at least 3 messages, got %q", output)
+	}
+}
+
+func TestConversationsRepliesJSON(t *testing.T) {
+	env, sc := setupSlackClient(t)
+	channelID := getRequiredEnv(t, "SLACK_TEST_CHANNEL_ID")
+
+	root, replies := createTestThread(t, sc, channelID)
+	t.Cleanup(func() {
+		cleanupTestThread(t, sc, channelID, root.TS, replies)
+	})
+
+	commandResult, err := runCommandWithInput(t, env, "", "slack", "conversations", "replies", "--channel", channelID, "--ts", root.TS, "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var thread SlackConversationsReplies
+	if err := json.Unmarshal(commandResult.stdout.Bytes(), &thread); err != nil {
+		t.Fatalf("expected valid JSON output: %v", err)
+	}
+
+	if !thread.OK {
+		t.Fatal("expected ok=true in JSON output")
+	}
+
+	if len(thread.Messages) < 3 {
+		t.Fatalf("expected at least 3 messages in thread JSON, got %d", len(thread.Messages))
+	}
+}
+
+func createTestThread(t *testing.T, sc SlackClient, channelID string) (SlackChatPostMessage, []SlackChatPostMessage) {
+	t.Helper()
+
+	root, err := sc.PostMessage(SlackChatPostMessageInput{
+		Channel: channelID,
+		Text:    uniqueTestMessage("conversations replies root"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	replies := make([]SlackChatPostMessage, 0, 2)
+	for _, text := range []string{
+		uniqueTestMessage("conversations replies reply one"),
+		uniqueTestMessage("conversations replies reply two"),
+	} {
+		threadTS := root.TS
+		reply, err := sc.PostMessage(SlackChatPostMessageInput{
+			Channel:  channelID,
+			Text:     text,
+			ThreadTS: &threadTS,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		replies = append(replies, reply)
+	}
+
+	return root, replies
+}
+
+func cleanupTestThread(t *testing.T, sc SlackClient, channelID string, rootTS string, replies []SlackChatPostMessage) {
+	t.Helper()
+
+	for index := len(replies) - 1; index >= 0; index-- {
+		if _, err := sc.DeleteMessage(SlackChatDeleteInput{
+			Channel: channelID,
+			TS:      replies[index].TS,
+		}); err != nil {
+			t.Errorf("failed to delete reply %s: %v", replies[index].TS, err)
+		}
+	}
+
+	if _, err := sc.DeleteMessage(SlackChatDeleteInput{
+		Channel: channelID,
+		TS:      rootTS,
+	}); err != nil {
+		t.Errorf("failed to delete root %s: %v", rootTS, err)
+	}
+}

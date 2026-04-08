@@ -36,6 +36,7 @@ The supported commands are:
 - `slack conversations list [--types <csv>] [--limit <n>] [--cursor <cursor>] [--exclude-archived]`
 - `slack conversations info --channel <conversation-id> [--include-locale]`
 - `slack conversations history --channel <conversation-id> [--cursor <cursor>] [--inclusive] [--latest <ts>] [--limit <n>] [--oldest <ts>]`
+- `slack conversations replies --channel <conversation-id> --ts <thread-root-ts> [--cursor <cursor>] [--inclusive] [--latest <ts>] [--limit <n>] [--oldest <ts>]`
 - `slack chat help`
 - `slack chat post-message --channel <conversation-id> --text <text>`
 - `slack chat post-message --channel <conversation-id> --text-file <path>`
@@ -108,6 +109,7 @@ slack conversations info --channel C0123456789
 slack conversations info --channel C0123456789 --include-locale
 slack conversations history --channel C0123456789 --limit 2
 slack conversations history --channel C0123456789 --limit 2 --json
+slack conversations replies --channel C0123456789 --ts 1775661449.396699 --limit 10
 slack chat post-message --channel C0123456789 --text 'hello from slack cli'
 slack chat update --channel C0123456789 --ts 1775060927.238849 --text 'updated text'
 slack chat delete --channel C0123456789 --ts 1775060927.238849
