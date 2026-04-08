@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mistlehq/tools/internal/testproxy"
 	"io"
 	"net/http"
 	"os"
@@ -66,9 +67,9 @@ func setupCommandEnvironment(t *testing.T) Environment {
 	username := getRequiredEnv(t, "JIRA_TEST_USERNAME")
 	password := getRequiredEnv(t, "JIRA_TEST_PASSWORD")
 
-	proxy, err := startProxyServer(proxyConfig{
+	proxy, err := testproxy.Start(testproxy.Config{
 		UpstreamBaseURL: upstreamBaseURL,
-		AuthMode:        ProxyAuthModeBasic,
+		AuthMode:        testproxy.AuthModeBasic,
 		Username:        username,
 		Password:        password,
 	})

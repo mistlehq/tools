@@ -1,4 +1,4 @@
-package main
+package testproxy
 
 import (
 	"encoding/base64"
@@ -9,22 +9,22 @@ import (
 	"net/url"
 )
 
-type proxyAuthMode string
+type AuthMode string
 
 const (
-	ProxyAuthModeBasic  proxyAuthMode = "basic"
-	ProxyAuthModeBearer proxyAuthMode = "bearer"
+	AuthModeBasic  AuthMode = "basic"
+	AuthModeBearer AuthMode = "bearer"
 )
 
-type proxyConfig struct {
+type Config struct {
 	UpstreamBaseURL string
-	AuthMode        proxyAuthMode
+	AuthMode        AuthMode
 	Username        string
 	Password        string
 	Token           string
 }
 
-type proxyServer struct {
+type Server struct {
 	BaseURL string
 	Close   func() error
 }
@@ -34,14 +34,14 @@ func basicAuthorizationHeader(username string, password string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(credentials))
 }
 
-func startProxyServer(config proxyConfig) (*proxyServer, error) {
+func Start(config Config) (*Server, error) {
 	upstreamURL, err := url.Parse(config.UpstreamBaseURL)
 	if err != nil {
 		return nil, err
 	}
 
 	switch config.AuthMode {
-	case ProxyAuthModeBasic:
+	case AuthModeBasic:
 		if config.Username == "" {
 			return nil, fmt.Errorf("basic auth requires username")
 		}
@@ -49,11 +49,10 @@ func startProxyServer(config proxyConfig) (*proxyServer, error) {
 		if config.Password == "" {
 			return nil, fmt.Errorf("basic auth requires password")
 		}
-	case ProxyAuthModeBearer:
+	case AuthModeBearer:
 		if config.Token == "" {
 			return nil, fmt.Errorf("bearer auth requires token")
 		}
-
 	default:
 		return nil, fmt.Errorf("unsupported auth mode: %s", config.AuthMode)
 	}
@@ -65,9 +64,9 @@ func startProxyServer(config proxyConfig) (*proxyServer, error) {
 			r.Out.Header.Del("Authorization")
 
 			switch config.AuthMode {
-			case ProxyAuthModeBasic:
+			case AuthModeBasic:
 				r.Out.Header.Set("Authorization", basicAuthorizationHeader(config.Username, config.Password))
-			case ProxyAuthModeBearer:
+			case AuthModeBearer:
 				r.Out.Header.Set("Authorization", "Bearer "+config.Token)
 			}
 		},
@@ -86,7 +85,7 @@ func startProxyServer(config proxyConfig) (*proxyServer, error) {
 		_ = server.Serve(listener)
 	}()
 
-	return &proxyServer{
+	return &Server{
 		BaseURL: "http://" + listener.Addr().String(),
 		Close:   server.Close,
 	}, nil
