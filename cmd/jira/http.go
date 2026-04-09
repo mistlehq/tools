@@ -155,6 +155,42 @@ func (jc JiraClient) put(path string, body []byte) ([]byte, error) {
 	return responseBody, nil
 }
 
+func (jc JiraClient) delete(path string) error {
+	if !strings.HasPrefix(path, "/") {
+		return fmt.Errorf("path must start with '/': %s", path)
+	}
+
+	url := jc.baseURL + path
+
+	request, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodDelete,
+		url,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	response, err := jc.client.Do(request)
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("request failed with status %d: %s", response.StatusCode, string(body))
+	}
+
+	return nil
+}
+
 type JiraMyself struct {
 	AccountID   string `json:"accountId"`
 	DisplayName string `json:"displayName"`
@@ -249,6 +285,10 @@ func (jc JiraClient) GetIssue(issueOrKey string) (JiraIssue, error) {
 	}
 
 	return jiraIssue, nil
+}
+
+func (jc JiraClient) DeleteIssue(issueOrKey string) error {
+	return jc.delete(fmt.Sprintf("/rest/api/3/issue/%s", issueOrKey))
 }
 
 type JiraIssueSearchRequest struct {
@@ -428,4 +468,8 @@ func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (
 	}
 
 	return comment, nil
+}
+
+func (jc JiraClient) DeleteIssueComment(issueOrKey string, commentID string) error {
+	return jc.delete(fmt.Sprintf("/rest/api/3/issue/%s/comment/%s", issueOrKey, commentID))
 }

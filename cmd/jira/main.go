@@ -243,6 +243,8 @@ func (cli CLI) runIssue(args []string) error {
 		}
 
 		return cli.runIssueSearch(jc, args[1:])
+	case "delete":
+		return cli.runIssueDelete(args[1:])
 	case "comment":
 		return cli.runIssueComment(args[1:])
 	case "assign":
@@ -267,6 +269,8 @@ func (cli CLI) runIssueComment(args []string) error {
 	switch args[0] {
 	case "add":
 		return cli.runIssueCommentAdd(args[1:])
+	case "delete":
+		return cli.runIssueCommentDelete(args[1:])
 	default:
 		return fmt.Errorf("unsupported issue comment command: %s", args[0])
 	}
@@ -284,6 +288,31 @@ func (cli CLI) runIssueAssign(args []string) error {
 	}
 
 	return cli.runIssueAssignSet(args)
+}
+
+func (cli CLI) runIssueDelete(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueDeleteHelp()
+		return nil
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("issue delete expects exactly 1 positional argument")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	issueKey := args[0]
+	if err := jc.DeleteIssue(issueKey); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "Issue: "+issueKey)
+	fmt.Fprintln(cli.stdout, "Deleted: true")
+	return nil
 }
 
 func (cli CLI) runIssueTransition(args []string) error {
@@ -666,6 +695,33 @@ func (cli CLI) runIssueCommentAdd(args []string) error {
 	return nil
 }
 
+func (cli CLI) runIssueCommentDelete(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueCommentDeleteHelp()
+		return nil
+	}
+
+	if len(args) != 2 {
+		return fmt.Errorf("issue comment delete expects exactly 2 positional arguments")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	issueKey := args[0]
+	commentID := args[1]
+	if err := jc.DeleteIssueComment(issueKey, commentID); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "Issue: "+issueKey)
+	fmt.Fprintln(cli.stdout, "Comment ID: "+commentID)
+	fmt.Fprintln(cli.stdout, "Deleted: true")
+	return nil
+}
+
 func (cli CLI) runIssueGet(jc JiraClient, args []string) error {
 	if isSingleHelpArg(args) {
 		cli.printIssueGetHelp()
@@ -724,6 +780,8 @@ Usage:
   jira issue get --help
   jira issue search '<jql query>'
   jira issue search --help
+  jira issue delete <issue-key>
+  jira issue delete --help
   jira issue comment help
   jira issue assign help
   jira issue transition help
@@ -733,6 +791,7 @@ Usage:
 Commands:
   get         Fetch a single issue
   search      Search issues with JQL
+  delete      Delete a single issue
   comment     Add comments to issues
   assign      Change assignees
   transition  List or apply workflow transitions
@@ -779,19 +838,39 @@ Example:
 `)
 }
 
+func (cli CLI) printIssueDeleteHelp() {
+	fmt.Fprint(cli.stdout, `jira issue delete
+
+Delete a Jira issue by key.
+
+Usage:
+  jira issue delete <issue-key>
+  jira issue delete --help
+
+Output:
+  Prints the issue key and whether the delete succeeded.
+
+Example:
+  jira issue delete PROJ-123
+`)
+}
+
 func (cli CLI) printIssueCommentHelp() {
 	fmt.Fprint(cli.stdout, `jira issue comment
 
-Add comments to Jira issues.
+Manage Jira issue comments.
 
 Usage:
   jira issue comment help
   jira issue comment add <issue-key> --body <text>
   jira issue comment add <issue-key> --body-file <path>
+  jira issue comment delete <issue-key> <comment-id>
+  jira issue comment delete --help
   jira issue comment add --help
 
 Commands:
-  add    Create a new issue comment from inline text, a file, or stdin
+  add       Create a new issue comment from inline text, a file, or stdin
+  delete    Delete an existing issue comment by ID
 `)
 }
 
@@ -813,6 +892,20 @@ Examples:
 Notes:
   Exactly one of --body or --body-file is required.
   Use --body-file - to read the comment body from stdin.
+`)
+}
+
+func (cli CLI) printIssueCommentDeleteHelp() {
+	fmt.Fprint(cli.stdout, `jira issue comment delete
+
+Delete a comment from a Jira issue.
+
+Usage:
+  jira issue comment delete <issue-key> <comment-id>
+  jira issue comment delete --help
+
+Example:
+  jira issue comment delete PROJ-123 10001
 `)
 }
 
@@ -995,10 +1088,12 @@ Common Starting Points:
 
 Issue Workflows:
   jira issue comment add PROJ-123 --body 'Looks good'
+  jira issue comment delete PROJ-123 10001
   jira issue assign PROJ-123 --me
   jira issue transition list PROJ-123
   jira issue transition PROJ-123 --to 'In Progress'
   jira issue update PROJ-123 --summary 'Tighten validation'
+  jira issue delete PROJ-123
   jira issue editmeta PROJ-123
 
 Dive Deeper:
@@ -1006,6 +1101,7 @@ Dive Deeper:
   jira project help
   jira issue help
   jira issue comment help
+  jira issue delete --help
   jira issue assign help
   jira issue transition help
   jira issue update help

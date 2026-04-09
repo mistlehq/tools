@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -80,5 +81,71 @@ func TestIssueSearch(t *testing.T) {
 		if len(strings.Split(line, "\t")) != 3 {
 			t.Fatal("expected row to have 3 columns")
 		}
+	}
+}
+
+func TestIssueDelete(t *testing.T) {
+	env := setupCommandEnvironment(t)
+	config, err := loadConfig(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jc := NewJiraClient(config)
+	template, err := getJiraTestIssueTemplate(jc, jiraTestTemplateIssueKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	issue, err := createJiraTestIssue(jc, template, fmt.Sprintf("delete integration test %s", t.Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deleted := false
+	t.Cleanup(func() {
+		if deleted {
+			return
+		}
+
+		if err := deleteJiraTestIssue(jc, issue.Key); err != nil {
+			t.Errorf("failed to delete issue %s: %v", issue.Key, err)
+		}
+	})
+
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "delete", issue.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deleted = true
+
+	output := strings.TrimSpace(commandResult.stdout.String())
+	lines := strings.Split(output, "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 output lines, got %d: %q", len(lines), output)
+	}
+
+	if lines[0] != "Issue: "+issue.Key {
+		t.Fatalf("unexpected issue line: %q", lines[0])
+	}
+
+	if lines[1] != "Deleted: true" {
+		t.Fatalf("unexpected deleted line: %q", lines[1])
+	}
+
+	if _, err := jc.GetIssue(issue.Key); err == nil {
+		t.Fatalf("expected deleted issue %s to be unavailable", issue.Key)
+	}
+}
+
+func TestIssueDeleteRequiresIssueKey(t *testing.T) {
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "delete")
+	if err == nil {
+		t.Fatal("expected missing issue key to fail")
+	}
+
+	if err.Error() != "issue delete expects exactly 1 positional argument" {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
