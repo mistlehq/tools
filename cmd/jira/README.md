@@ -11,7 +11,9 @@ The CLI covers common Jira workflows needed by Mistle users and provider integra
 - identity checks
 - project discovery
 - issue lookup and search
+- issue deletion
 - issue comments
+- comment deletion
 - assignment
 - workflow transitions
 - summary and description updates
@@ -36,9 +38,11 @@ The supported commands are:
 - `jira issue help`
 - `jira issue get <key>`
 - `jira issue search '<jql query>'`
+- `jira issue delete <key>`
 - `jira issue comment help`
 - `jira issue comment add <issue-key> --body <text>`
 - `jira issue comment add <issue-key> --body-file <path>`
+- `jira issue comment delete <issue-key> <comment-id>`
 - `jira issue assign help`
 - `jira issue assign <issue-key> --me`
 - `jira issue assign <issue-key> --account-id <account-id>`
@@ -68,8 +72,10 @@ jira project list --help
 jira issue help
 jira issue get --help
 jira issue search --help
+jira issue delete --help
 jira issue comment help
 jira issue comment add --help
+jira issue comment delete --help
 jira issue assign help
 jira issue assign --help
 jira issue transition help
@@ -97,7 +103,9 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | `jira auth help` | Show auth help. | Local only | None | None | No Jira request is made. |
 | `jira project help` | Show project help. | Local only | None | None | No Jira request is made. |
 | `jira issue help` | Show issue help. | Local only | None | None | No Jira request is made. |
+| `jira issue delete help` | Show issue delete help. | Local only | None | None | No Jira request is made. |
 | `jira issue comment help` | Show issue comment help. | Local only | None | None | No Jira request is made. |
+| `jira issue comment delete help` | Show issue comment delete help. | Local only | None | None | No Jira request is made. |
 | `jira issue assign help` | Show issue assign help. | Local only | None | None | No Jira request is made. |
 | `jira issue transition help` | Show issue transition help. | Local only | None | None | No Jira request is made. |
 | `jira issue update help` | Show issue update help. | Local only | None | None | No Jira request is made. |
@@ -111,8 +119,10 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | `jira project list` | List visible Jira projects. | `GET /rest/api/3/project/search` | `read:jira-work` | `read:issue-type:jira`, `read:project:jira`, `read:project.property:jira`, `read:user:jira`, `read:application-role:jira`, `...` | Atlassian collapses the full granular list in the docs UI for this endpoint. |
 | `jira issue get <key>` | Fetch a single issue. | `GET /rest/api/3/issue/{issueIdOrKey}` | `read:jira-work` | `read:issue-meta:jira`, `read:issue-security-level:jira`, `read:issue.vote:jira`, `read:issue.changelog:jira`, `read:avatar:jira`, `...` | Atlassian collapses the full granular list in the docs UI for this endpoint. |
 | `jira issue search '<jql>'` | Search issues with JQL. | `POST /rest/api/3/search/jql` | `read:jira-work` | `read:issue-details:jira`, `read:audit-log:jira`, `read:avatar:jira`, `read:field-configuration:jira`, `read:issue-meta:jira` | Returns only issues visible to the caller. |
+| `jira issue delete <key>` | Delete a single issue. | `DELETE /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `delete:issue:jira` | Jira may require extra project permissions or `deleteSubtasks=true` when subtasks exist. |
 | `jira issue comment add <key> --body <text>` | Add a comment from inline text. | `POST /rest/api/3/issue/{issueIdOrKey}/comment` | `write:jira-work` | `read:comment:jira`, `read:comment.property:jira`, `read:group:jira`, `read:project:jira`, `read:project-role:jira`, `...` | Atlassian collapses the full granular list in the docs UI for this endpoint. |
 | `jira issue comment add <key> --body-file <path>` | Add a comment from a file or stdin. | `POST /rest/api/3/issue/{issueIdOrKey}/comment` | `write:jira-work` | `read:comment:jira`, `read:comment.property:jira`, `read:group:jira`, `read:project:jira`, `read:project-role:jira`, `...` | Use `--body-file -` to read the comment body from stdin. |
+| `jira issue comment delete <key> <comment-id>` | Delete a comment. | `DELETE /rest/api/3/issue/{issueIdOrKey}/comment/{id}` | `write:jira-work` | `delete:comment:jira`, `delete:comment.property:jira` | Runtime Jira comment visibility and delete permissions still apply. |
 | `jira issue assign <key> --account-id <id>` | Assign the issue to a specific Jira account. | `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | `write:jira-work` | `write:issue:jira` | Runtime Jira project permissions still apply. |
 | `jira issue assign <key> --unassigned` | Clear the assignee. | `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | `write:jira-work` | `write:issue:jira` | Runtime Jira project permissions still apply. |
 | `jira issue assign <key> --me` | Assign the issue to the current user. | `GET /rest/api/3/myself` + `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | `read:jira-user` + `write:jira-work` | `read:application-role:jira`, `read:group:jira`, `read:user:jira`, `read:avatar:jira`, `write:issue:jira` | Uses `whoami`-style identity lookup before assignment. |
@@ -148,9 +158,11 @@ jira project list
 jira issue help
 jira issue get PROJ-123
 jira issue search 'project = PROJ ORDER BY updated DESC'
+jira issue delete PROJ-123
 jira issue comment add PROJ-123 --body 'Looks good'
 jira issue comment add PROJ-123 --body-file ./comment.txt
 jira issue comment add PROJ-123 --body-file -
+jira issue comment delete PROJ-123 10001
 jira issue assign PROJ-123 --me
 jira issue assign PROJ-123 --account-id 712020:abc123
 jira issue assign PROJ-123 --unassigned

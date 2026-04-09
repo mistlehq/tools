@@ -65,9 +65,19 @@ func TestLeafCommandsAcceptDashDashHelp(t *testing.T) {
 			want: "Search Jira issues with a JQL query.",
 		},
 		{
+			name: "issue delete",
+			args: []string{"jira", "issue", "delete", "--help"},
+			want: "Delete a Jira issue by key.",
+		},
+		{
 			name: "issue comment add",
 			args: []string{"jira", "issue", "comment", "add", "--help"},
 			want: "Exactly one of --body or --body-file is required.",
+		},
+		{
+			name: "issue comment delete",
+			args: []string{"jira", "issue", "comment", "delete", "--help"},
+			want: "Delete a comment from a Jira issue.",
 		},
 		{
 			name: "issue assign",
@@ -114,6 +124,7 @@ func TestIssueHelpListsNestedFamilies(t *testing.T) {
 
 	output := strings.TrimSpace(commandResult.stdout.String())
 	expected := []string{
+		"jira issue delete <issue-key>",
 		"jira issue comment help",
 		"jira issue assign help",
 		"jira issue transition help",
@@ -165,6 +176,22 @@ func TestIssueCommentHelp(t *testing.T) {
 
 	if !strings.Contains(output, "jira issue comment add <issue-key> --body-file <path>") {
 		t.Fatal("expected issue comment help to mention --body-file usage")
+	}
+
+	if !strings.Contains(output, "jira issue comment delete <issue-key> <comment-id>") {
+		t.Fatal("expected issue comment help to mention delete usage")
+	}
+}
+
+func TestIssueDeleteHelp(t *testing.T) {
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "delete", "help")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := strings.TrimSpace(commandResult.stdout.String())
+	if !strings.Contains(output, "jira issue delete <issue-key>") {
+		t.Fatal("expected issue delete help to mention issue key usage")
 	}
 }
 

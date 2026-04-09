@@ -2,12 +2,9 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/mistlehq/tools/internal/testproxy"
-	"io"
-	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -184,31 +181,5 @@ func createJiraTestIssue(jc JiraClient, template jiraTestIssueTemplate, summary 
 }
 
 func deleteJiraTestIssue(jc JiraClient, issueKey string) error {
-	request, err := http.NewRequestWithContext(
-		context.Background(),
-		http.MethodDelete,
-		jc.baseURL+fmt.Sprintf("/rest/api/3/issue/%s", issueKey),
-		nil,
-	)
-	if err != nil {
-		return err
-	}
-
-	response, err := jc.client.Do(request)
-	if err != nil {
-		return err
-	}
-
-	defer response.Body.Close()
-
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			return err
-		}
-
-		return fmt.Errorf("request failed with status %d: %s", response.StatusCode, string(body))
-	}
-
-	return nil
+	return jc.DeleteIssue(issueKey)
 }
