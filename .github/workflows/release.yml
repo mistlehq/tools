@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  attestations: write
+  id-token: write
 
 jobs:
   release:
@@ -51,6 +53,11 @@ jobs:
             -ldflags "-X main.Version=${{ steps.parse.outputs.version }}" \
             -o "dist/${{ steps.parse.outputs.asset_name }}" \
             "./cmd/${{ steps.parse.outputs.cli }}"
+
+      - name: Attest Release Binary
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: "dist/${{ steps.parse.outputs.asset_name }}"
 
       - name: Create GitHub Release
         env:
