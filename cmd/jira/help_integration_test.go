@@ -97,7 +97,7 @@ func TestLeafCommandsAcceptDashDashHelp(t *testing.T) {
 		{
 			name: "issue update",
 			args: []string{"jira", "issue", "update", "--help"},
-			want: "Provide at least one of --summary, --description, or --description-file.",
+			want: "Use --field-json for arrays, objects, numbers, booleans, and null.",
 		},
 		{
 			name: "issue editmeta",
@@ -262,6 +262,10 @@ func TestIssueUpdateHelp(t *testing.T) {
 
 	if !strings.Contains(output, "jira issue update <issue-key> --description-file <path>") {
 		t.Fatal("expected issue update help to mention --description-file")
+	}
+
+	if !strings.Contains(output, "jira issue update <issue-key> --field-json <field-id=json>") {
+		t.Fatal("expected issue update help to mention --field-json")
 	}
 }
 
