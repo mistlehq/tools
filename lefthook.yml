@@ -1,0 +1,26 @@
+pre-commit:
+  commands:
+    gofmt:
+      glob: "*.go"
+      run: mise exec -- gofmt -w {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    conventional-commit:
+      run: |
+        first_line="$(sed -n '1p' {1})"
+        case "$first_line" in
+          feat:\ *|fix:\ *|chore:\ *|refactor:\ *|test:\ *|docs:\ *|feat\(*\):\ *|fix\(*\):\ *|chore\(*\):\ *|refactor\(*\):\ *|test\(*\):\ *|docs\(*\):\ *)
+            exit 0
+            ;;
+          *)
+            echo "commit message must use Conventional Commits: feat:, fix:, chore:, refactor:, test:, or docs:" >&2
+            exit 1
+            ;;
+        esac
+
+pre-push:
+  commands:
+    test:
+      run: mise exec -- go test ./...
