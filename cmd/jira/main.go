@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/mistlehq/tools/internal/argparse"
 	"github.com/mistlehq/tools/internal/textinput"
@@ -679,6 +680,12 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 		"description-file": {
 			TakesValue: true,
 		},
+		"field": {
+			TakesValue: true,
+		},
+		"field-json": {
+			TakesValue: true,
+		},
 	})
 	if err != nil {
 		return err
@@ -693,11 +700,29 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 	descriptionFileFlag := parsedArgs.First("description-file")
 
 	updatedFields := make([]string, 0, 2)
-	input := UpdateIssueInput{}
+	input := UpdateIssueInput{
+		Fields: make(map[string]any),
+	}
+	seenFields := make(map[string]struct{})
+	addField := func(fieldID string, value any) error {
+		if strings.TrimSpace(fieldID) == "" {
+			return fmt.Errorf("field id must not be empty")
+		}
+
+		if _, ok := seenFields[fieldID]; ok {
+			return fmt.Errorf("field %q was provided more than once", fieldID)
+		}
+
+		seenFields[fieldID] = struct{}{}
+		input.Fields[fieldID] = value
+		updatedFields = append(updatedFields, fieldID)
+		return nil
+	}
 
 	if summary != "" {
-		input.Summary = &summary
-		updatedFields = append(updatedFields, "summary")
+		if err := addField("summary", summary); err != nil {
+			return err
+		}
 	}
 
 	if descriptionFlag != "" || descriptionFileFlag != "" {
@@ -707,11 +732,46 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 		}
 
 		input.Description = &description
+		if _, ok := seenFields["description"]; ok {
+			return fmt.Errorf("field %q was provided more than once", "description")
+		}
+		seenFields["description"] = struct{}{}
 		updatedFields = append(updatedFields, "description")
 	}
 
+	for _, fieldSpec := range parsedArgs.Flags["field"] {
+		fieldID, value, err := parseFieldAssignment("--field", fieldSpec)
+		if err != nil {
+			return err
+		}
+
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("--field value for %s must not be empty; use --field-json %s=null to clear a field", fieldID, fieldID)
+		}
+
+		if err := addField(fieldID, value); err != nil {
+			return err
+		}
+	}
+
+	for _, fieldSpec := range parsedArgs.Flags["field-json"] {
+		fieldID, rawValue, err := parseFieldAssignment("--field-json", fieldSpec)
+		if err != nil {
+			return err
+		}
+
+		var value any
+		if err := json.Unmarshal([]byte(rawValue), &value); err != nil {
+			return fmt.Errorf("invalid JSON for --field-json %s: %w", fieldID, err)
+		}
+
+		if err := addField(fieldID, value); err != nil {
+			return err
+		}
+	}
+
 	if len(updatedFields) == 0 {
-		return fmt.Errorf("issue update requires at least one of --summary, --description, or --description-file")
+		return fmt.Errorf("issue update requires at least one of --summary, --description, --description-file, --field, or --field-json")
 	}
 
 	jc, err := cli.jiraClient()
@@ -727,6 +787,20 @@ func (cli CLI) runIssueUpdateFields(args []string) error {
 	fmt.Fprintln(cli.stdout, "Issue: "+issueKey)
 	fmt.Fprintln(cli.stdout, "Updated: "+strings.Join(updatedFields, ", "))
 	return nil
+}
+
+func parseFieldAssignment(flagName string, fieldSpec string) (string, string, error) {
+	fieldID, value, ok := strings.Cut(fieldSpec, "=")
+	if !ok {
+		return "", "", fmt.Errorf("%s expects field=value", flagName)
+	}
+
+	fieldID = strings.TrimSpace(fieldID)
+	if fieldID == "" {
+		return "", "", fmt.Errorf("%s field id must not be empty", flagName)
+	}
+
+	return fieldID, value, nil
 }
 
 func selectTransition(issueKey string, transitions []JiraTransition, parsedArgs argparse.Parsed) (JiraTransition, error) {
@@ -911,7 +985,7 @@ Commands:
   comment     Add comments to issues
   assign      Change assignees
   transition  List or apply workflow transitions
-  update      Edit summary and description fields
+  update      Edit summary, description, and other editable fields
   editmeta    Show which fields are editable on an issue
 
 Notes:
@@ -1107,7 +1181,7 @@ Usage:
   jira issue transition --help
 
 Notes:
-  Use 'jira issue update' for summary and description changes.
+  Use 'jira issue update' for editable field changes.
 `)
 }
 
@@ -1158,9 +1232,13 @@ Usage:
   jira issue update <issue-key> --summary <text>
   jira issue update <issue-key> --description <text>
   jira issue update <issue-key> --description-file <path>
+  jira issue update <issue-key> --field <field-id=value>
+  jira issue update <issue-key> --field-json <field-id=json>
   jira issue update --help
 
 Notes:
+  Use --field for string field values and --field-json for structured Jira values.
+  Inspect editable field IDs with 'jira issue editmeta <issue-key>'.
   Status changes use 'jira issue transition'.
 `)
 }
@@ -1168,12 +1246,14 @@ Notes:
 func (cli CLI) printIssueUpdateFieldsHelp() {
 	fmt.Fprint(cli.stdout, `jira issue update
 
-Update summary and description fields on a Jira issue.
+Update summary, description, and other editable fields on a Jira issue.
 
 Usage:
   jira issue update <issue-key> --summary <text>
   jira issue update <issue-key> --description <text>
   jira issue update <issue-key> --description-file <path>
+  jira issue update <issue-key> --field <field-id=value>
+  jira issue update <issue-key> --field-json <field-id=json>
   jira issue update --help
 
 Examples:
@@ -1181,10 +1261,15 @@ Examples:
   jira issue update PROJ-123 --description 'Expanded implementation notes'
   jira issue update PROJ-123 --description-file ./description.txt
   jira issue update PROJ-123 --description-file -
+  jira issue update PROJ-123 --field customfield_10010='Customer impact'
+  jira issue update PROJ-123 --field-json labels='["backend","urgent"]'
+  jira issue update PROJ-123 --field-json customfield_10020=null
 
 Notes:
-  Provide at least one of --summary, --description, or --description-file.
+  Provide at least one of --summary, --description, --description-file, --field, or --field-json.
   Use --description-file - to read the description from stdin.
+  Use --field-json for arrays, objects, numbers, booleans, and null.
+  Inspect editable field IDs and field types with 'jira issue editmeta <issue-key>'.
   Status changes use 'jira issue transition'.
 `)
 }
@@ -1240,6 +1325,7 @@ Issue Workflows:
   jira issue transition list PROJ-123
   jira issue transition PROJ-123 --to 'In Progress'
   jira issue update PROJ-123 --summary 'Tighten validation'
+  jira issue update PROJ-123 --field-json labels='["backend","urgent"]'
   jira issue delete PROJ-123
   jira issue editmeta PROJ-123
 

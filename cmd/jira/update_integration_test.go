@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -87,13 +88,69 @@ func TestIssueUpdateSummaryAndDescription(t *testing.T) {
 	}
 }
 
+func TestIssueUpdateFieldString(t *testing.T) {
+	env, issueKey := setupIsolatedIssue(t)
+	summary := fmt.Sprintf("generic field update at %d", time.Now().UnixNano())
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "update", issueKey, "--field", "summary="+summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := strings.TrimSpace(commandResult.stdout.String())
+	if !strings.Contains(output, "Updated: summary") {
+		t.Fatal("expected update output to mention summary")
+	}
+
+	config, err := loadConfig(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	issue, err := NewJiraClient(config).GetIssue(issueKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if issue.Fields.Summary != summary {
+		t.Fatalf("expected updated summary %q, got %q", summary, issue.Fields.Summary)
+	}
+}
+
+func TestIssueUpdateFieldJSON(t *testing.T) {
+	env, issueKey := setupIsolatedIssue(t)
+	summary := fmt.Sprintf("generic json field update at %d", time.Now().UnixNano())
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "update", issueKey, "--field-json", "summary="+strconv.Quote(summary))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := strings.TrimSpace(commandResult.stdout.String())
+	if !strings.Contains(output, "Updated: summary") {
+		t.Fatal("expected update output to mention summary")
+	}
+
+	config, err := loadConfig(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	issue, err := NewJiraClient(config).GetIssue(issueKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if issue.Fields.Summary != summary {
+		t.Fatalf("expected updated summary %q, got %q", summary, issue.Fields.Summary)
+	}
+}
+
 func TestIssueUpdateRequiresAtLeastOneField(t *testing.T) {
 	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1")
 	if err == nil {
 		t.Fatal("expected update without fields to fail")
 	}
 
-	if err.Error() != "issue update requires at least one of --summary, --description, or --description-file" {
+	if err.Error() != "issue update requires at least one of --summary, --description, --description-file, --field, or --field-json" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -105,6 +162,39 @@ func TestIssueUpdateRejectsConflictingDescriptionFlags(t *testing.T) {
 	}
 
 	if err.Error() != "--description and --description-file are mutually exclusive" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestIssueUpdateRejectsFieldWithoutEquals(t *testing.T) {
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--field", "summary")
+	if err == nil {
+		t.Fatal("expected field without equals to fail")
+	}
+
+	if err.Error() != "--field expects field=value" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestIssueUpdateRejectsInvalidFieldJSON(t *testing.T) {
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--field-json", "summary={")
+	if err == nil {
+		t.Fatal("expected invalid field JSON to fail")
+	}
+
+	if !strings.Contains(err.Error(), "invalid JSON for --field-json summary") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestIssueUpdateRejectsDuplicateFields(t *testing.T) {
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--summary", "a", "--field", "summary=b")
+	if err == nil {
+		t.Fatal("expected duplicate fields to fail")
+	}
+
+	if err.Error() != "field \"summary\" was provided more than once" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

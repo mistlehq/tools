@@ -466,14 +466,14 @@ func (jc JiraClient) TransitionIssue(issueOrKey string, input TransitionIssueInp
 }
 
 type UpdateIssueInput struct {
-	Summary     *string
 	Description *string
+	Fields      map[string]any
 }
 
 func (jc JiraClient) UpdateIssue(issueOrKey string, input UpdateIssueInput) error {
 	fields := make(map[string]any)
-	if input.Summary != nil {
-		fields["summary"] = *input.Summary
+	for fieldID, value := range input.Fields {
+		fields[fieldID] = value
 	}
 
 	if input.Description != nil {

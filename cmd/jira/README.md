@@ -17,7 +17,7 @@ The CLI covers common Jira workflows needed by Mistle users and provider integra
 - comment deletion
 - assignment
 - workflow transitions
-- summary and description updates
+- summary, description, and editable field updates
 - edit metadata inspection
 
 ## Usage
@@ -60,6 +60,8 @@ The supported commands are:
 - `jira issue update <issue-key> --summary <text>`
 - `jira issue update <issue-key> --description <text>`
 - `jira issue update <issue-key> --description-file <path>`
+- `jira issue update <issue-key> --field <field-id=value>`
+- `jira issue update <issue-key> --field-json <field-id=json>`
 - `jira issue editmeta help`
 - `jira issue editmeta <issue-key>`
 
@@ -143,7 +145,9 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | `jira issue update <key> --summary <text>` | Update the issue summary. | `PUT /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `write:issue:jira` | Status changes do not go through `update`. |
 | `jira issue update <key> --description <text>` | Update the issue description from inline text. | `PUT /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `write:issue:jira` | The CLI converts plain text to Atlassian Document Format internally. |
 | `jira issue update <key> --description-file <path>` | Update the issue description from a file or stdin. | `PUT /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `write:issue:jira` | Use `--description-file -` to read the description from stdin. |
-| `jira issue editmeta <key>` | Show editable field metadata for the issue. | `GET /rest/api/3/issue/{issueIdOrKey}/editmeta` | `read:jira-work` | `read:issue-meta:jira`, `read:field-configuration:jira` | Useful before broader field editing support. |
+| `jira issue update <key> --field <field-id=value>` | Update an editable field with a string value. | `PUT /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `write:issue:jira` | Use `editmeta` first to inspect editable field IDs. |
+| `jira issue update <key> --field-json <field-id=json>` | Update an editable field with a JSON value. | `PUT /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `write:issue:jira` | Use for arrays, objects, numbers, booleans, and `null`. |
+| `jira issue editmeta <key>` | Show editable field metadata for the issue. | `GET /rest/api/3/issue/{issueIdOrKey}/editmeta` | `read:jira-work` | `read:issue-meta:jira`, `read:field-configuration:jira` | Useful before generic field editing. |
 
 ### Configuration
 
@@ -188,6 +192,9 @@ jira issue update PROJ-123 --summary 'Tighten validation'
 jira issue update PROJ-123 --description 'Expanded implementation notes'
 jira issue update PROJ-123 --description-file ./description.txt
 jira issue update PROJ-123 --description-file -
+jira issue update PROJ-123 --field customfield_10010='Customer impact'
+jira issue update PROJ-123 --field-json labels='["backend","urgent"]'
+jira issue update PROJ-123 --field-json customfield_10020=null
 jira issue editmeta PROJ-123
 ```
 
