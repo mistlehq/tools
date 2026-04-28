@@ -318,6 +318,76 @@ type JiraIssueEditMeta struct {
 	Fields map[string]JiraEditMetaField `json:"fields"`
 }
 
+type CreateIssueInput struct {
+	ProjectID     string
+	ProjectKey    string
+	IssueTypeID   string
+	IssueTypeName string
+	Summary       string
+	Description   *string
+}
+
+type JiraCreatedIssue struct {
+	ID  string `json:"id"`
+	Key string `json:"key"`
+}
+
+func (jc JiraClient) CreateIssue(input CreateIssueInput) (JiraCreatedIssue, error) {
+	fields := map[string]any{
+		"summary": input.Summary,
+	}
+
+	if input.ProjectID != "" {
+		fields["project"] = map[string]string{
+			"id": input.ProjectID,
+		}
+	} else {
+		fields["project"] = map[string]string{
+			"key": input.ProjectKey,
+		}
+	}
+
+	if input.IssueTypeID != "" {
+		fields["issuetype"] = map[string]string{
+			"id": input.IssueTypeID,
+		}
+	} else {
+		fields["issuetype"] = map[string]string{
+			"name": input.IssueTypeName,
+		}
+	}
+
+	if input.Description != nil {
+		descriptionDocument, err := NewJiraTextDocument(*input.Description)
+		if err != nil {
+			return JiraCreatedIssue{}, err
+		}
+
+		fields["description"] = descriptionDocument
+	}
+
+	requestBody, err := json.Marshal(struct {
+		Fields map[string]any `json:"fields"`
+	}{
+		Fields: fields,
+	})
+	if err != nil {
+		return JiraCreatedIssue{}, err
+	}
+
+	responseBody, err := jc.post("/rest/api/3/issue", requestBody)
+	if err != nil {
+		return JiraCreatedIssue{}, err
+	}
+
+	var issue JiraCreatedIssue
+	if err := json.Unmarshal(responseBody, &issue); err != nil {
+		return JiraCreatedIssue{}, err
+	}
+
+	return issue, nil
+}
+
 func (jc JiraClient) SearchIssues(jql string) (JiraIssueSearchResult, error) {
 	searchRequest := JiraIssueSearchRequest{
 		JQL:    jql,

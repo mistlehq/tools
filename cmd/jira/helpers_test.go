@@ -101,11 +101,6 @@ type jiraTestIssueTemplate struct {
 	} `json:"fields"`
 }
 
-type jiraCreatedIssue struct {
-	ID  string `json:"id"`
-	Key string `json:"key"`
-}
-
 func setupIsolatedIssue(t *testing.T) (Environment, string) {
 	t.Helper()
 
@@ -149,35 +144,12 @@ func getJiraTestIssueTemplate(jc JiraClient, issueKey string) (jiraTestIssueTemp
 	return template, nil
 }
 
-func createJiraTestIssue(jc JiraClient, template jiraTestIssueTemplate, summary string) (jiraCreatedIssue, error) {
-	requestBody, err := json.Marshal(struct {
-		Fields map[string]any `json:"fields"`
-	}{
-		Fields: map[string]any{
-			"project": map[string]string{
-				"id": template.Fields.Project.ID,
-			},
-			"issuetype": map[string]string{
-				"id": template.Fields.IssueType.ID,
-			},
-			"summary": summary,
-		},
+func createJiraTestIssue(jc JiraClient, template jiraTestIssueTemplate, summary string) (JiraCreatedIssue, error) {
+	return jc.CreateIssue(CreateIssueInput{
+		ProjectID:   template.Fields.Project.ID,
+		IssueTypeID: template.Fields.IssueType.ID,
+		Summary:     summary,
 	})
-	if err != nil {
-		return jiraCreatedIssue{}, err
-	}
-
-	responseBody, err := jc.post("/rest/api/3/issue", requestBody)
-	if err != nil {
-		return jiraCreatedIssue{}, err
-	}
-
-	var issue jiraCreatedIssue
-	if err := json.Unmarshal(responseBody, &issue); err != nil {
-		return jiraCreatedIssue{}, err
-	}
-
-	return issue, nil
 }
 
 func deleteJiraTestIssue(jc JiraClient, issueKey string) error {

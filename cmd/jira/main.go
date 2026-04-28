@@ -219,6 +219,8 @@ func (cli CLI) runIssue(args []string) error {
 	}
 
 	switch args[0] {
+	case "create":
+		return cli.runIssueCreate(args[1:])
 	case "get":
 		if isSingleHelpArg(args[1:]) {
 			cli.printIssueGetHelp()
@@ -258,6 +260,117 @@ func (cli CLI) runIssue(args []string) error {
 	default:
 		return fmt.Errorf("unsupported issue command: %s", args[0])
 	}
+}
+
+func (cli CLI) runIssueCreate(args []string) error {
+	if len(args) == 0 || isSingleHelpArg(args) {
+		cli.printIssueCreateHelp()
+		return nil
+	}
+
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"project-key": {
+			TakesValue: true,
+		},
+		"project-id": {
+			TakesValue: true,
+		},
+		"issue-type": {
+			TakesValue: true,
+		},
+		"issue-type-id": {
+			TakesValue: true,
+		},
+		"summary": {
+			TakesValue: true,
+		},
+		"description": {
+			TakesValue: true,
+		},
+		"description-file": {
+			TakesValue: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) != 0 {
+		return fmt.Errorf("issue create does not accept positional arguments")
+	}
+
+	projectSelectors := 0
+	if parsedArgs.Has("project-key") {
+		projectSelectors++
+	}
+	if parsedArgs.Has("project-id") {
+		projectSelectors++
+	}
+	if projectSelectors != 1 {
+		return fmt.Errorf("exactly one of --project-key or --project-id is required")
+	}
+	if parsedArgs.Has("project-key") && strings.TrimSpace(parsedArgs.First("project-key")) == "" {
+		return fmt.Errorf("--project-key must not be empty")
+	}
+	if parsedArgs.Has("project-id") && strings.TrimSpace(parsedArgs.First("project-id")) == "" {
+		return fmt.Errorf("--project-id must not be empty")
+	}
+
+	issueTypeSelectors := 0
+	if parsedArgs.Has("issue-type") {
+		issueTypeSelectors++
+	}
+	if parsedArgs.Has("issue-type-id") {
+		issueTypeSelectors++
+	}
+	if issueTypeSelectors != 1 {
+		return fmt.Errorf("exactly one of --issue-type or --issue-type-id is required")
+	}
+	if parsedArgs.Has("issue-type") && strings.TrimSpace(parsedArgs.First("issue-type")) == "" {
+		return fmt.Errorf("--issue-type must not be empty")
+	}
+	if parsedArgs.Has("issue-type-id") && strings.TrimSpace(parsedArgs.First("issue-type-id")) == "" {
+		return fmt.Errorf("--issue-type-id must not be empty")
+	}
+
+	summary := parsedArgs.First("summary")
+	if strings.TrimSpace(summary) == "" {
+		return fmt.Errorf("--summary is required and must not be empty")
+	}
+
+	input := CreateIssueInput{
+		ProjectID:     parsedArgs.First("project-id"),
+		ProjectKey:    parsedArgs.First("project-key"),
+		IssueTypeID:   parsedArgs.First("issue-type-id"),
+		IssueTypeName: parsedArgs.First("issue-type"),
+		Summary:       summary,
+	}
+
+	descriptionFlag := parsedArgs.First("description")
+	descriptionFileFlag := parsedArgs.First("description-file")
+	if descriptionFlag != "" || descriptionFileFlag != "" {
+		description, err := textinput.Read(cli.stdin, "description", descriptionFlag, "description-file", descriptionFileFlag)
+		if err != nil {
+			return err
+		}
+
+		input.Description = &description
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	issue, err := jc.CreateIssue(input)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "ID: "+issue.ID)
+	fmt.Fprintln(cli.stdout, "Key: "+issue.Key)
+	fmt.Fprintln(cli.stdout, "Summary: "+summary)
+	return nil
 }
 
 func (cli CLI) runIssueComment(args []string) error {
@@ -776,6 +889,8 @@ Inspect and mutate Jira issues.
 
 Usage:
   jira issue help
+  jira issue create --project-key <key> --issue-type <name> --summary <text>
+  jira issue create --help
   jira issue get <issue-key>
   jira issue get --help
   jira issue search '<jql query>'
@@ -789,6 +904,7 @@ Usage:
   jira issue editmeta help
 
 Commands:
+  create      Create a new issue
   get         Fetch a single issue
   search      Search issues with JQL
   delete      Delete a single issue
@@ -799,8 +915,38 @@ Commands:
   editmeta    Show which fields are editable on an issue
 
 Notes:
+  Creation requires one project selector, one issue type selector, and a summary.
   Status changes go through 'jira issue transition', not 'jira issue update'.
   Leaf commands also accept --help for command-specific usage.
+`)
+}
+
+func (cli CLI) printIssueCreateHelp() {
+	fmt.Fprint(cli.stdout, `jira issue create
+
+Create a Jira issue.
+
+Usage:
+  jira issue create --project-key <key> --issue-type <name> --summary <text>
+  jira issue create --project-id <id> --issue-type-id <id> --summary <text>
+  jira issue create --project-key <key> --issue-type <name> --summary <text> --description <text>
+  jira issue create --project-key <key> --issue-type <name> --summary <text> --description-file <path>
+  jira issue create --help
+
+Output:
+  Prints the created issue ID, key, and summary.
+
+Examples:
+  jira issue create --project-key PROJ --issue-type Task --summary 'Tighten validation'
+  jira issue create --project-key PROJ --issue-type Bug --summary 'Fix auth error' --description-file ./description.txt
+  jira issue create --project-key PROJ --issue-type Task --summary 'Plan rollout' --description-file -
+
+Notes:
+  Exactly one of --project-key or --project-id is required.
+  Exactly one of --issue-type or --issue-type-id is required.
+  --summary is required.
+  --description and --description-file are optional and mutually exclusive.
+  Use --description-file - to read the description from stdin.
 `)
 }
 
@@ -1087,6 +1233,7 @@ Common Starting Points:
   jira issue get PROJ-123
 
 Issue Workflows:
+  jira issue create --project-key PROJ --issue-type Task --summary 'Tighten validation'
   jira issue comment add PROJ-123 --body 'Looks good'
   jira issue comment delete PROJ-123 10001
   jira issue assign PROJ-123 --me
@@ -1100,6 +1247,7 @@ Dive Deeper:
   jira auth help
   jira project help
   jira issue help
+  jira issue create --help
   jira issue comment help
   jira issue delete --help
   jira issue assign help

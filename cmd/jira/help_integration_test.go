@@ -55,6 +55,11 @@ func TestLeafCommandsAcceptDashDashHelp(t *testing.T) {
 			want: "List Jira projects visible to the current caller.",
 		},
 		{
+			name: "issue create",
+			args: []string{"jira", "issue", "create", "--help"},
+			want: "Exactly one of --project-key or --project-id is required.",
+		},
+		{
 			name: "issue get",
 			args: []string{"jira", "issue", "get", "--help"},
 			want: "Fetch a single Jira issue by key.",
@@ -124,6 +129,7 @@ func TestIssueHelpListsNestedFamilies(t *testing.T) {
 
 	output := strings.TrimSpace(commandResult.stdout.String())
 	expected := []string{
+		"jira issue create --project-key <key> --issue-type <name> --summary <text>",
 		"jira issue delete <issue-key>",
 		"jira issue comment help",
 		"jira issue assign help",
@@ -180,6 +186,22 @@ func TestIssueCommentHelp(t *testing.T) {
 
 	if !strings.Contains(output, "jira issue comment delete <issue-key> <comment-id>") {
 		t.Fatal("expected issue comment help to mention delete usage")
+	}
+}
+
+func TestIssueCreateHelp(t *testing.T) {
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "create", "help")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := strings.TrimSpace(commandResult.stdout.String())
+	if !strings.Contains(output, "jira issue create --project-key <key> --issue-type <name> --summary <text>") {
+		t.Fatal("expected issue create help to mention project key usage")
+	}
+
+	if !strings.Contains(output, "jira issue create --project-id <id> --issue-type-id <id> --summary <text>") {
+		t.Fatal("expected issue create help to mention id-based usage")
 	}
 }
 

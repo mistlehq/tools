@@ -10,6 +10,7 @@ The CLI covers common Jira workflows needed by Mistle users and provider integra
 
 - identity checks
 - project discovery
+- issue creation
 - issue lookup and search
 - issue deletion
 - issue comments
@@ -36,6 +37,10 @@ The supported commands are:
 - `jira project help`
 - `jira project list`
 - `jira issue help`
+- `jira issue create --project-key <key> --issue-type <name> --summary <text>`
+- `jira issue create --project-id <id> --issue-type-id <id> --summary <text>`
+- `jira issue create --project-key <key> --issue-type <name> --summary <text> --description <text>`
+- `jira issue create --project-key <key> --issue-type <name> --summary <text> --description-file <path>`
 - `jira issue get <key>`
 - `jira issue search '<jql query>'`
 - `jira issue delete <key>`
@@ -70,6 +75,7 @@ jira auth whoami --help
 jira project help
 jira project list --help
 jira issue help
+jira issue create --help
 jira issue get --help
 jira issue search --help
 jira issue delete --help
@@ -103,6 +109,7 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | `jira auth help` | Show auth help. | Local only | None | None | No Jira request is made. |
 | `jira project help` | Show project help. | Local only | None | None | No Jira request is made. |
 | `jira issue help` | Show issue help. | Local only | None | None | No Jira request is made. |
+| `jira issue create help` | Show issue create help. | Local only | None | None | No Jira request is made. |
 | `jira issue delete help` | Show issue delete help. | Local only | None | None | No Jira request is made. |
 | `jira issue comment help` | Show issue comment help. | Local only | None | None | No Jira request is made. |
 | `jira issue comment delete help` | Show issue comment delete help. | Local only | None | None | No Jira request is made. |
@@ -117,6 +124,10 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | --- | --- | --- | --- | --- | --- |
 | `jira auth whoami` | Show the current Jira user. | `GET /rest/api/3/myself` | `read:jira-user` | `read:application-role:jira`, `read:group:jira`, `read:user:jira`, `read:avatar:jira` | Requires permission to access Jira. |
 | `jira project list` | List visible Jira projects. | `GET /rest/api/3/project/search` | `read:jira-work` | `read:issue-type:jira`, `read:project:jira`, `read:project.property:jira`, `read:user:jira`, `read:application-role:jira`, `...` | Atlassian collapses the full granular list in the docs UI for this endpoint. |
+| `jira issue create --project-key <key> --issue-type <name> --summary <text>` | Create an issue by project key and issue type name. | `POST /rest/api/3/issue` | `write:jira-work` | `write:issue:jira` | Runtime Jira project permissions, required fields, and field configuration still apply. |
+| `jira issue create --project-id <id> --issue-type-id <id> --summary <text>` | Create an issue by project ID and issue type ID. | `POST /rest/api/3/issue` | `write:jira-work` | `write:issue:jira` | Useful when names are ambiguous or localized. |
+| `jira issue create ... --description <text>` | Create an issue with an inline description. | `POST /rest/api/3/issue` | `write:jira-work` | `write:issue:jira` | The CLI converts plain text to Atlassian Document Format internally. |
+| `jira issue create ... --description-file <path>` | Create an issue with a description from a file or stdin. | `POST /rest/api/3/issue` | `write:jira-work` | `write:issue:jira` | Use `--description-file -` to read the description from stdin. |
 | `jira issue get <key>` | Fetch a single issue. | `GET /rest/api/3/issue/{issueIdOrKey}` | `read:jira-work` | `read:issue-meta:jira`, `read:issue-security-level:jira`, `read:issue.vote:jira`, `read:issue.changelog:jira`, `read:avatar:jira`, `...` | Atlassian collapses the full granular list in the docs UI for this endpoint. |
 | `jira issue search '<jql>'` | Search issues with JQL. | `POST /rest/api/3/search/jql` | `read:jira-work` | `read:issue-details:jira`, `read:audit-log:jira`, `read:avatar:jira`, `read:field-configuration:jira`, `read:issue-meta:jira` | Returns only issues visible to the caller. |
 | `jira issue delete <key>` | Delete a single issue. | `DELETE /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `delete:issue:jira` | Jira may require extra project permissions or `deleteSubtasks=true` when subtasks exist. |
@@ -156,6 +167,10 @@ jira auth whoami
 jira auth help
 jira project list
 jira issue help
+jira issue create --project-key PROJ --issue-type Task --summary 'Tighten validation'
+jira issue create --project-key PROJ --issue-type Bug --summary 'Fix auth error' --description 'Expanded implementation notes'
+jira issue create --project-key PROJ --issue-type Task --summary 'Plan rollout' --description-file ./description.txt
+jira issue create --project-key PROJ --issue-type Task --summary 'Plan rollout' --description-file -
 jira issue get PROJ-123
 jira issue search 'project = PROJ ORDER BY updated DESC'
 jira issue delete PROJ-123
