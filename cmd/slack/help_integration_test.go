@@ -109,6 +109,8 @@ func TestFilesHelp(t *testing.T) {
 
 	output := strings.TrimSpace(commandResult.stdout.String())
 	expected := []string{
+		"slack files info --file <file-id>",
+		"slack files download --file <file-id> --output <path>",
 		"slack files upload --path <path> --channel <conversation-id>",
 		"slack files upload --path <path> --channel <conversation-id> --initial-comment <text>",
 		"slack files upload --path <path> --channel <conversation-id> --thread-ts <ts>",

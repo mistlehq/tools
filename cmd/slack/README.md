@@ -20,6 +20,8 @@ The current implementation covers:
 - permalink lookup
 - message reactions
 - emoji listing
+- file inspection
+- file download
 - file upload
 
 ## Usage
@@ -49,6 +51,8 @@ The supported commands are:
 - `slack reactions add --channel <conversation-id> --timestamp <ts> --name <emoji-name>`
 - `slack reactions remove --channel <conversation-id> --timestamp <ts> --name <emoji-name>`
 - `slack files help`
+- `slack files info --file <file-id>`
+- `slack files download --file <file-id> --output <path>`
 - `slack files upload --path <path> --channel <conversation-id>`
 - `slack files upload --path <path> --channel <conversation-id> --initial-comment <text>`
 - `slack files upload --path <path> --channel <conversation-id> --initial-comment-file <path>`
@@ -116,6 +120,8 @@ slack chat delete --channel C0123456789 --ts 1775060927.238849
 slack chat get-permalink --channel C0123456789 --message-ts 1775060927.238849
 slack reactions add --channel C0123456789 --timestamp 1775060927.238849 --name eyes
 slack reactions remove --channel C0123456789 --timestamp 1775060927.238849 --name eyes
+slack files info --file F0123456789
+slack files download --file F0123456789 --output ./downloaded-report.txt
 slack files upload --path ./report.txt --channel C0123456789
 slack files upload --path ./report.txt --channel C0123456789 --initial-comment 'latest report'
 slack emoji list

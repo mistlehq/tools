@@ -162,6 +162,10 @@ func (cli CLI) runFiles(args []string) error {
 	}
 
 	switch args[0] {
+	case "info":
+		return cli.runFilesInfo(sc, args[1:])
+	case "download":
+		return cli.runFilesDownload(sc, args[1:])
 	case "upload":
 		return cli.runFilesUpload(sc, args[1:])
 	default:
@@ -777,10 +781,92 @@ func (cli CLI) printFilesHelp() {
 	fmt.Fprintln(cli.stdout, "")
 	fmt.Fprintln(cli.stdout, "Usage:")
 	fmt.Fprintln(cli.stdout, "  slack files help")
+	fmt.Fprintln(cli.stdout, "  slack files info --file <file-id>")
+	fmt.Fprintln(cli.stdout, "  slack files download --file <file-id> --output <path>")
 	fmt.Fprintln(cli.stdout, "  slack files upload --path <path> --channel <conversation-id>")
 	fmt.Fprintln(cli.stdout, "  slack files upload --path <path> --channel <conversation-id> --initial-comment <text>")
 	fmt.Fprintln(cli.stdout, "  slack files upload --path <path> --channel <conversation-id> --initial-comment-file <path>")
 	fmt.Fprintln(cli.stdout, "  slack files upload --path <path> --channel <conversation-id> --thread-ts <ts>")
+}
+
+func (cli CLI) runFilesInfo(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"file": {TakesValue: true},
+		"json": {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("files info does not accept positional arguments")
+	}
+
+	fileID := parsedArgs.First("file")
+	if fileID == "" {
+		return fmt.Errorf("files info requires --file")
+	}
+
+	info, err := sc.GetFileInfo(fileID)
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, info)
+	}
+
+	file := info.File
+	fmt.Fprintln(cli.stdout, "File ID: "+file.ID)
+	fmt.Fprintln(cli.stdout, "Name: "+file.Name)
+	fmt.Fprintln(cli.stdout, "Title: "+file.Title)
+	fmt.Fprintf(cli.stdout, "Size: %d\n", file.Size)
+	fmt.Fprintln(cli.stdout, "URL Private: "+file.URLPrivate)
+	fmt.Fprintln(cli.stdout, "URL Private Download: "+file.URLPrivateDownload)
+	fmt.Fprintln(cli.stdout, "Permalink: "+file.Permalink)
+	return nil
+}
+
+func (cli CLI) runFilesDownload(sc SlackClient, args []string) error {
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"file":   {TakesValue: true},
+		"output": {TakesValue: true},
+		"json":   {},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) > 0 {
+		return fmt.Errorf("files download does not accept positional arguments")
+	}
+
+	fileID := parsedArgs.First("file")
+	if fileID == "" {
+		return fmt.Errorf("files download requires --file")
+	}
+
+	output := parsedArgs.First("output")
+	if output == "" {
+		return fmt.Errorf("files download requires --output")
+	}
+
+	downloaded, err := sc.DownloadFile(SlackFilesDownloadInput{
+		FileID: fileID,
+		Output: output,
+	})
+	if err != nil {
+		return err
+	}
+
+	if parsedArgs.Has("json") {
+		return writeJSON(cli.stdout, downloaded)
+	}
+
+	fmt.Fprintln(cli.stdout, "File ID: "+downloaded.FileID)
+	fmt.Fprintln(cli.stdout, "Output: "+downloaded.Output)
+	fmt.Fprintf(cli.stdout, "Bytes: %d\n", downloaded.Bytes)
+	return nil
 }
 
 func (cli CLI) runFilesUpload(sc SlackClient, args []string) error {
