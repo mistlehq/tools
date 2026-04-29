@@ -122,10 +122,18 @@ type SlackEmojiList struct {
 }
 
 type SlackFile struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Title     string `json:"title"`
-	Permalink string `json:"permalink"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	Title              string `json:"title"`
+	Size               int64  `json:"size"`
+	URLPrivate         string `json:"url_private"`
+	URLPrivateDownload string `json:"url_private_download"`
+	Permalink          string `json:"permalink"`
+}
+
+type SlackFilesInfo struct {
+	OK   bool      `json:"ok"`
+	File SlackFile `json:"file"`
 }
 
 type SlackFilesGetUploadURLExternal struct {
@@ -655,6 +663,99 @@ type SlackFilesUploadInput struct {
 	Channel        string
 	ThreadTS       string
 	InitialComment string
+}
+
+type SlackFilesDownloadInput struct {
+	FileID string
+	Output string
+}
+
+type SlackFilesDownload struct {
+	FileID string `json:"file_id"`
+	Output string `json:"output"`
+	Bytes  int    `json:"bytes"`
+}
+
+func (sc SlackClient) GetFileInfo(fileID string) (SlackFilesInfo, error) {
+	query := url.Values{}
+	query.Set("file", fileID)
+
+	responseBody, err := sc.get("/files.info", query)
+	if err != nil {
+		return SlackFilesInfo{}, err
+	}
+
+	var info SlackFilesInfo
+	if err := json.Unmarshal(responseBody, &info); err != nil {
+		return SlackFilesInfo{}, err
+	}
+
+	return info, nil
+}
+
+func (sc SlackClient) DownloadFile(input SlackFilesDownloadInput) (SlackFilesDownload, error) {
+	info, err := sc.GetFileInfo(input.FileID)
+	if err != nil {
+		return SlackFilesDownload{}, err
+	}
+
+	downloadURL := resolveSlackFileDownloadURL(info.File)
+	if downloadURL == "" {
+		return SlackFilesDownload{}, fmt.Errorf("slack file %s does not include url_private_download or url_private", input.FileID)
+	}
+
+	fileBytes, err := sc.downloadFileBytes(downloadURL)
+	if err != nil {
+		return SlackFilesDownload{}, err
+	}
+
+	if err := os.WriteFile(input.Output, fileBytes, 0o600); err != nil {
+		return SlackFilesDownload{}, err
+	}
+
+	return SlackFilesDownload{
+		FileID: input.FileID,
+		Output: input.Output,
+		Bytes:  len(fileBytes),
+	}, nil
+}
+
+func resolveSlackFileDownloadURL(file SlackFile) string {
+	if file.URLPrivateDownload != "" {
+		return file.URLPrivateDownload
+	}
+
+	return file.URLPrivate
+}
+
+func (sc SlackClient) downloadFileBytes(downloadURL string) ([]byte, error) {
+	request, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodGet,
+		downloadURL,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := sc.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("file download failed with status %d: %s", response.StatusCode, string(responseBody))
+	}
+
+	return responseBody, nil
 }
 
 func (sc SlackClient) UploadFile(input SlackFilesUploadInput) (SlackFilesCompleteUploadExternal, error) {
