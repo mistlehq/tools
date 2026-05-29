@@ -155,12 +155,16 @@ func NewSlackClient(config Config) SlackClient {
 }
 
 func (sc SlackClient) post(method string, body []byte) ([]byte, error) {
+	return sc.postContext(context.Background(), method, body)
+}
+
+func (sc SlackClient) postContext(ctx context.Context, method string, body []byte) ([]byte, error) {
 	if !strings.HasPrefix(method, "/") {
 		return nil, fmt.Errorf("method path must start with '/': %s", method)
 	}
 
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodPost,
 		sc.baseURL+method,
 		bytes.NewReader(body),
@@ -209,6 +213,10 @@ func (sc SlackClient) post(method string, body []byte) ([]byte, error) {
 }
 
 func (sc SlackClient) get(method string, query url.Values) ([]byte, error) {
+	return sc.getContext(context.Background(), method, query)
+}
+
+func (sc SlackClient) getContext(ctx context.Context, method string, query url.Values) ([]byte, error) {
 	if !strings.HasPrefix(method, "/") {
 		return nil, fmt.Errorf("method path must start with '/': %s", method)
 	}
@@ -219,7 +227,7 @@ func (sc SlackClient) get(method string, query url.Values) ([]byte, error) {
 	}
 
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodGet,
 		requestURL,
 		nil,
@@ -266,6 +274,10 @@ func (sc SlackClient) get(method string, query url.Values) ([]byte, error) {
 }
 
 func (sc SlackClient) postMultipart(method string, values map[string]string) ([]byte, error) {
+	return sc.postMultipartContext(context.Background(), method, values)
+}
+
+func (sc SlackClient) postMultipartContext(ctx context.Context, method string, values map[string]string) ([]byte, error) {
 	if !strings.HasPrefix(method, "/") {
 		return nil, fmt.Errorf("method path must start with '/': %s", method)
 	}
@@ -283,7 +295,7 @@ func (sc SlackClient) postMultipart(method string, values map[string]string) ([]
 	}
 
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodPost,
 		sc.baseURL+method,
 		&body,
@@ -332,7 +344,11 @@ func (sc SlackClient) postMultipart(method string, values map[string]string) ([]
 }
 
 func (sc SlackClient) AuthTest() (SlackAuthTest, error) {
-	responseBody, err := sc.post("/auth.test", []byte("{}"))
+	return sc.AuthTestContext(context.Background())
+}
+
+func (sc SlackClient) AuthTestContext(ctx context.Context) (SlackAuthTest, error) {
+	responseBody, err := sc.postContext(ctx, "/auth.test", []byte("{}"))
 	if err != nil {
 		return SlackAuthTest{}, err
 	}
@@ -353,6 +369,10 @@ type SlackConversationsListInput struct {
 }
 
 func (sc SlackClient) ListConversations(input SlackConversationsListInput) (SlackConversationsList, error) {
+	return sc.ListConversationsContext(context.Background(), input)
+}
+
+func (sc SlackClient) ListConversationsContext(ctx context.Context, input SlackConversationsListInput) (SlackConversationsList, error) {
 	query := url.Values{}
 	if input.Types != "" {
 		query.Set("types", input.Types)
@@ -370,7 +390,7 @@ func (sc SlackClient) ListConversations(input SlackConversationsListInput) (Slac
 		query.Set("exclude_archived", "true")
 	}
 
-	responseBody, err := sc.get("/conversations.list", query)
+	responseBody, err := sc.getContext(ctx, "/conversations.list", query)
 	if err != nil {
 		return SlackConversationsList{}, err
 	}
@@ -389,6 +409,10 @@ type SlackConversationsInfoInput struct {
 }
 
 func (sc SlackClient) GetConversationInfo(input SlackConversationsInfoInput) (SlackConversationsInfo, error) {
+	return sc.GetConversationInfoContext(context.Background(), input)
+}
+
+func (sc SlackClient) GetConversationInfoContext(ctx context.Context, input SlackConversationsInfoInput) (SlackConversationsInfo, error) {
 	query := url.Values{}
 	query.Set("channel", input.Channel)
 
@@ -396,7 +420,7 @@ func (sc SlackClient) GetConversationInfo(input SlackConversationsInfoInput) (Sl
 		query.Set("include_locale", "true")
 	}
 
-	responseBody, err := sc.get("/conversations.info", query)
+	responseBody, err := sc.getContext(ctx, "/conversations.info", query)
 	if err != nil {
 		return SlackConversationsInfo{}, err
 	}
@@ -419,6 +443,10 @@ type SlackConversationsHistoryInput struct {
 }
 
 func (sc SlackClient) GetConversationHistory(input SlackConversationsHistoryInput) (SlackConversationsHistory, error) {
+	return sc.GetConversationHistoryContext(context.Background(), input)
+}
+
+func (sc SlackClient) GetConversationHistoryContext(ctx context.Context, input SlackConversationsHistoryInput) (SlackConversationsHistory, error) {
 	query := url.Values{}
 	query.Set("channel", input.Channel)
 
@@ -442,7 +470,7 @@ func (sc SlackClient) GetConversationHistory(input SlackConversationsHistoryInpu
 		query.Set("oldest", input.Oldest)
 	}
 
-	responseBody, err := sc.get("/conversations.history", query)
+	responseBody, err := sc.getContext(ctx, "/conversations.history", query)
 	if err != nil {
 		return SlackConversationsHistory{}, err
 	}
@@ -466,6 +494,10 @@ type SlackConversationsRepliesInput struct {
 }
 
 func (sc SlackClient) GetConversationReplies(input SlackConversationsRepliesInput) (SlackConversationsReplies, error) {
+	return sc.GetConversationRepliesContext(context.Background(), input)
+}
+
+func (sc SlackClient) GetConversationRepliesContext(ctx context.Context, input SlackConversationsRepliesInput) (SlackConversationsReplies, error) {
 	query := url.Values{}
 	query.Set("channel", input.Channel)
 	query.Set("ts", input.TS)
@@ -490,7 +522,7 @@ func (sc SlackClient) GetConversationReplies(input SlackConversationsRepliesInpu
 		query.Set("oldest", input.Oldest)
 	}
 
-	responseBody, err := sc.get("/conversations.replies", query)
+	responseBody, err := sc.getContext(ctx, "/conversations.replies", query)
 	if err != nil {
 		return SlackConversationsReplies{}, err
 	}
@@ -510,12 +542,16 @@ type SlackChatPostMessageInput struct {
 }
 
 func (sc SlackClient) PostMessage(input SlackChatPostMessageInput) (SlackChatPostMessage, error) {
+	return sc.PostMessageContext(context.Background(), input)
+}
+
+func (sc SlackClient) PostMessageContext(ctx context.Context, input SlackChatPostMessageInput) (SlackChatPostMessage, error) {
 	requestBody, err := json.Marshal(input)
 	if err != nil {
 		return SlackChatPostMessage{}, err
 	}
 
-	responseBody, err := sc.post("/chat.postMessage", requestBody)
+	responseBody, err := sc.postContext(ctx, "/chat.postMessage", requestBody)
 	if err != nil {
 		return SlackChatPostMessage{}, err
 	}
@@ -535,12 +571,16 @@ type SlackChatUpdateInput struct {
 }
 
 func (sc SlackClient) UpdateMessage(input SlackChatUpdateInput) (SlackChatUpdate, error) {
+	return sc.UpdateMessageContext(context.Background(), input)
+}
+
+func (sc SlackClient) UpdateMessageContext(ctx context.Context, input SlackChatUpdateInput) (SlackChatUpdate, error) {
 	requestBody, err := json.Marshal(input)
 	if err != nil {
 		return SlackChatUpdate{}, err
 	}
 
-	responseBody, err := sc.post("/chat.update", requestBody)
+	responseBody, err := sc.postContext(ctx, "/chat.update", requestBody)
 	if err != nil {
 		return SlackChatUpdate{}, err
 	}
@@ -559,12 +599,16 @@ type SlackChatDeleteInput struct {
 }
 
 func (sc SlackClient) DeleteMessage(input SlackChatDeleteInput) (SlackChatDelete, error) {
+	return sc.DeleteMessageContext(context.Background(), input)
+}
+
+func (sc SlackClient) DeleteMessageContext(ctx context.Context, input SlackChatDeleteInput) (SlackChatDelete, error) {
 	requestBody, err := json.Marshal(input)
 	if err != nil {
 		return SlackChatDelete{}, err
 	}
 
-	responseBody, err := sc.post("/chat.delete", requestBody)
+	responseBody, err := sc.postContext(ctx, "/chat.delete", requestBody)
 	if err != nil {
 		return SlackChatDelete{}, err
 	}
@@ -578,11 +622,15 @@ func (sc SlackClient) DeleteMessage(input SlackChatDeleteInput) (SlackChatDelete
 }
 
 func (sc SlackClient) GetPermalink(channel string, messageTS string) (SlackChatGetPermalink, error) {
+	return sc.GetPermalinkContext(context.Background(), channel, messageTS)
+}
+
+func (sc SlackClient) GetPermalinkContext(ctx context.Context, channel string, messageTS string) (SlackChatGetPermalink, error) {
 	query := url.Values{}
 	query.Set("channel", channel)
 	query.Set("message_ts", messageTS)
 
-	responseBody, err := sc.get("/chat.getPermalink", query)
+	responseBody, err := sc.getContext(ctx, "/chat.getPermalink", query)
 	if err != nil {
 		return SlackChatGetPermalink{}, err
 	}
@@ -602,12 +650,16 @@ type SlackReactionInput struct {
 }
 
 func (sc SlackClient) AddReaction(input SlackReactionInput) (SlackReactionResponse, error) {
+	return sc.AddReactionContext(context.Background(), input)
+}
+
+func (sc SlackClient) AddReactionContext(ctx context.Context, input SlackReactionInput) (SlackReactionResponse, error) {
 	requestBody, err := json.Marshal(input)
 	if err != nil {
 		return SlackReactionResponse{}, err
 	}
 
-	responseBody, err := sc.post("/reactions.add", requestBody)
+	responseBody, err := sc.postContext(ctx, "/reactions.add", requestBody)
 	if err != nil {
 		return SlackReactionResponse{}, err
 	}
@@ -621,12 +673,16 @@ func (sc SlackClient) AddReaction(input SlackReactionInput) (SlackReactionRespon
 }
 
 func (sc SlackClient) RemoveReaction(input SlackReactionInput) (SlackReactionResponse, error) {
+	return sc.RemoveReactionContext(context.Background(), input)
+}
+
+func (sc SlackClient) RemoveReactionContext(ctx context.Context, input SlackReactionInput) (SlackReactionResponse, error) {
 	requestBody, err := json.Marshal(input)
 	if err != nil {
 		return SlackReactionResponse{}, err
 	}
 
-	responseBody, err := sc.post("/reactions.remove", requestBody)
+	responseBody, err := sc.postContext(ctx, "/reactions.remove", requestBody)
 	if err != nil {
 		return SlackReactionResponse{}, err
 	}
@@ -640,12 +696,16 @@ func (sc SlackClient) RemoveReaction(input SlackReactionInput) (SlackReactionRes
 }
 
 func (sc SlackClient) ListEmoji(includeCategories bool) (SlackEmojiList, error) {
+	return sc.ListEmojiContext(context.Background(), includeCategories)
+}
+
+func (sc SlackClient) ListEmojiContext(ctx context.Context, includeCategories bool) (SlackEmojiList, error) {
 	query := url.Values{}
 	if includeCategories {
 		query.Set("include_categories", "true")
 	}
 
-	responseBody, err := sc.get("/emoji.list", query)
+	responseBody, err := sc.getContext(ctx, "/emoji.list", query)
 	if err != nil {
 		return SlackEmojiList{}, err
 	}
@@ -677,10 +737,14 @@ type SlackFilesDownload struct {
 }
 
 func (sc SlackClient) GetFileInfo(fileID string) (SlackFilesInfo, error) {
+	return sc.GetFileInfoContext(context.Background(), fileID)
+}
+
+func (sc SlackClient) GetFileInfoContext(ctx context.Context, fileID string) (SlackFilesInfo, error) {
 	query := url.Values{}
 	query.Set("file", fileID)
 
-	responseBody, err := sc.get("/files.info", query)
+	responseBody, err := sc.getContext(ctx, "/files.info", query)
 	if err != nil {
 		return SlackFilesInfo{}, err
 	}
@@ -694,7 +758,11 @@ func (sc SlackClient) GetFileInfo(fileID string) (SlackFilesInfo, error) {
 }
 
 func (sc SlackClient) DownloadFile(input SlackFilesDownloadInput) (SlackFilesDownload, error) {
-	info, err := sc.GetFileInfo(input.FileID)
+	return sc.DownloadFileContext(context.Background(), input)
+}
+
+func (sc SlackClient) DownloadFileContext(ctx context.Context, input SlackFilesDownloadInput) (SlackFilesDownload, error) {
+	info, err := sc.GetFileInfoContext(ctx, input.FileID)
 	if err != nil {
 		return SlackFilesDownload{}, err
 	}
@@ -704,7 +772,7 @@ func (sc SlackClient) DownloadFile(input SlackFilesDownloadInput) (SlackFilesDow
 		return SlackFilesDownload{}, fmt.Errorf("slack file %s does not include url_private_download or url_private", input.FileID)
 	}
 
-	fileBytes, err := sc.downloadFileBytes(downloadURL)
+	fileBytes, err := sc.downloadFileBytesContext(ctx, downloadURL)
 	if err != nil {
 		return SlackFilesDownload{}, err
 	}
@@ -729,8 +797,12 @@ func resolveSlackFileDownloadURL(file SlackFile) string {
 }
 
 func (sc SlackClient) downloadFileBytes(downloadURL string) ([]byte, error) {
+	return sc.downloadFileBytesContext(context.Background(), downloadURL)
+}
+
+func (sc SlackClient) downloadFileBytesContext(ctx context.Context, downloadURL string) ([]byte, error) {
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodGet,
 		downloadURL,
 		nil,
@@ -759,26 +831,34 @@ func (sc SlackClient) downloadFileBytes(downloadURL string) ([]byte, error) {
 }
 
 func (sc SlackClient) UploadFile(input SlackFilesUploadInput) (SlackFilesCompleteUploadExternal, error) {
+	return sc.UploadFileContext(context.Background(), input)
+}
+
+func (sc SlackClient) UploadFileContext(ctx context.Context, input SlackFilesUploadInput) (SlackFilesCompleteUploadExternal, error) {
 	fileBytes, err := os.ReadFile(input.Path)
 	if err != nil {
 		return SlackFilesCompleteUploadExternal{}, err
 	}
 
 	filename := filepath.Base(input.Path)
-	getUpload, err := sc.getUploadURLExternal(filename, len(fileBytes))
+	getUpload, err := sc.getUploadURLExternalContext(ctx, filename, len(fileBytes))
 	if err != nil {
 		return SlackFilesCompleteUploadExternal{}, err
 	}
 
-	if err := sc.uploadFileBytes(getUpload.UploadURL, fileBytes); err != nil {
+	if err := sc.uploadFileBytesContext(ctx, getUpload.UploadURL, fileBytes); err != nil {
 		return SlackFilesCompleteUploadExternal{}, err
 	}
 
-	return sc.completeUploadExternal(getUpload.FileID, filename, input)
+	return sc.completeUploadExternalContext(ctx, getUpload.FileID, filename, input)
 }
 
 func (sc SlackClient) getUploadURLExternal(filename string, length int) (SlackFilesGetUploadURLExternal, error) {
-	responseBody, err := sc.postMultipart("/files.getUploadURLExternal", map[string]string{
+	return sc.getUploadURLExternalContext(context.Background(), filename, length)
+}
+
+func (sc SlackClient) getUploadURLExternalContext(ctx context.Context, filename string, length int) (SlackFilesGetUploadURLExternal, error) {
+	responseBody, err := sc.postMultipartContext(ctx, "/files.getUploadURLExternal", map[string]string{
 		"filename": filename,
 		"length":   fmt.Sprintf("%d", length),
 	})
@@ -795,8 +875,12 @@ func (sc SlackClient) getUploadURLExternal(filename string, length int) (SlackFi
 }
 
 func (sc SlackClient) uploadFileBytes(uploadURL string, fileBytes []byte) error {
+	return sc.uploadFileBytesContext(context.Background(), uploadURL, fileBytes)
+}
+
+func (sc SlackClient) uploadFileBytesContext(ctx context.Context, uploadURL string, fileBytes []byte) error {
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodPost,
 		uploadURL,
 		bytes.NewReader(fileBytes),
@@ -827,6 +911,10 @@ func (sc SlackClient) uploadFileBytes(uploadURL string, fileBytes []byte) error 
 }
 
 func (sc SlackClient) completeUploadExternal(fileID string, filename string, input SlackFilesUploadInput) (SlackFilesCompleteUploadExternal, error) {
+	return sc.completeUploadExternalContext(context.Background(), fileID, filename, input)
+}
+
+func (sc SlackClient) completeUploadExternalContext(ctx context.Context, fileID string, filename string, input SlackFilesUploadInput) (SlackFilesCompleteUploadExternal, error) {
 	filesValue, err := json.Marshal([]map[string]string{{
 		"id":    fileID,
 		"title": filename,
@@ -848,7 +936,7 @@ func (sc SlackClient) completeUploadExternal(fileID string, filename string, inp
 		values["thread_ts"] = input.ThreadTS
 	}
 
-	responseBody, err := sc.postMultipart("/files.completeUploadExternal", values)
+	responseBody, err := sc.postMultipartContext(ctx, "/files.completeUploadExternal", values)
 	if err != nil {
 		return SlackFilesCompleteUploadExternal{}, err
 	}
@@ -862,7 +950,11 @@ func (sc SlackClient) completeUploadExternal(fileID string, filename string, inp
 }
 
 func (sc SlackClient) DeleteFile(fileID string) error {
-	_, err := sc.postMultipart("/files.delete", map[string]string{
+	return sc.DeleteFileContext(context.Background(), fileID)
+}
+
+func (sc SlackClient) DeleteFileContext(ctx context.Context, fileID string) error {
+	_, err := sc.postMultipartContext(ctx, "/files.delete", map[string]string{
 		"file": fileID,
 	})
 	return err
