@@ -23,6 +23,7 @@ All CLIs in this repository follow the same basic shape:
 - They do not handle auth directly. They operate as if they are already authenticated and rely on the configured proxy layer to inject credentials upstream.
 - Their root `help` output should work like a landing-page README for first-time users: quick orientation, major command families, common workflows, and clear next steps.
 - Progressive discovery is still expected, but every namespace and leaf command should accept `--help` so users and agents can ask for local command guidance without trial-and-error.
+- When a CLI exposes MCP support, the MCP server should stay local by default and expose provider API operations as structured tools rather than re-parsing CLI text output.
 
 ## Supported CLIs
 
@@ -44,3 +45,10 @@ mkdir -p dist && go build -o dist/jira ./cmd/jira
 ## Usage
 
 Each CLI has its own README with command-specific documentation. In general, start with the root help for the binary you are using, then drill down into namespace or leaf help with `--help` as needed.
+
+Some CLIs also expose local MCP servers for agent clients. Start with the provider's MCP namespace help, for example:
+
+```sh
+jira mcp help
+jira mcp serve --help
+```

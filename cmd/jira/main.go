@@ -57,6 +57,8 @@ func (cli CLI) run(args []string) error {
 		return cli.runProject(args[2:])
 	case "issue":
 		return cli.runIssue(args[2:])
+	case "mcp":
+		return cli.runMCP(args[2:])
 	default:
 		return fmt.Errorf("unsupported command: %s", args[1])
 	}
@@ -123,9 +125,9 @@ Commands:
 }
 
 func (cli CLI) printAuthWhoAmIHelp() {
-	fmt.Fprint(cli.stdout, `jira auth whoami
+	fmt.Fprintf(cli.stdout, `jira auth whoami
 
-Show the Jira account behind the current auth context.
+%s
 
 Usage:
   jira auth whoami
@@ -133,7 +135,7 @@ Usage:
 
 Output:
   Prints the account ID, display name, and email returned by Jira.
-`)
+`, jiraAuthWhoAmIDoc.Description)
 }
 
 func (cli CLI) runProject(args []string) error {
@@ -200,9 +202,9 @@ Commands:
 }
 
 func (cli CLI) printProjectListHelp() {
-	fmt.Fprint(cli.stdout, `jira project list
+	fmt.Fprintf(cli.stdout, `jira project list
 
-List Jira projects visible to the current caller.
+%s
 
 Usage:
   jira project list
@@ -210,7 +212,7 @@ Usage:
 
 Output:
   Prints a table with project ID, project key, and project name.
-`)
+`, jiraProjectListDoc.Description)
 }
 
 func (cli CLI) runIssue(args []string) error {
@@ -1025,9 +1027,9 @@ Notes:
 }
 
 func (cli CLI) printIssueGetHelp() {
-	fmt.Fprint(cli.stdout, `jira issue get
+	fmt.Fprintf(cli.stdout, `jira issue get
 
-Fetch a single Jira issue by key.
+%s
 
 Usage:
   jira issue get <issue-key>
@@ -1038,13 +1040,13 @@ Output:
 
 Example:
   jira issue get PROJ-123
-`)
+`, jiraIssueGetDoc.Description)
 }
 
 func (cli CLI) printIssueSearchHelp() {
-	fmt.Fprint(cli.stdout, `jira issue search
+	fmt.Fprintf(cli.stdout, `jira issue search
 
-Search Jira issues with a JQL query.
+%s
 
 Usage:
   jira issue search '<jql query>'
@@ -1055,7 +1057,7 @@ Output:
 
 Example:
   jira issue search 'project = PROJ ORDER BY updated DESC'
-`)
+`, jiraIssueSearchDoc.Description)
 }
 
 func (cli CLI) printIssueDeleteHelp() {
@@ -1305,11 +1307,13 @@ Usage:
   jira auth help
   jira project help
   jira issue help
+  jira mcp help
 
 Command Families:
   auth       Inspect the current Jira auth context
   project    Discover visible Jira projects
   issue      Read issues and perform common issue mutations
+  mcp        Serve Jira tools over MCP Streamable HTTP
 
 Common Starting Points:
   jira auth whoami
@@ -1340,6 +1344,7 @@ Dive Deeper:
   jira issue transition help
   jira issue update help
   jira issue editmeta help
+  jira mcp help
 
 Help Conventions:
   Namespaces accept help, -h, and --help.

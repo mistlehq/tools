@@ -30,6 +30,16 @@
 - Preserve progressive discovery through namespace help, but ensure namespace and leaf commands also accept `--help`.
 - When help behavior changes materially, update the relevant README files and cover the behavior with tests.
 
+## MCP Servers
+
+- Some provider CLIs may expose local MCP servers under `<provider> mcp serve`.
+- MCP servers should stay thin: expose provider REST API operations as structured MCP tools and reuse the same provider clients/configuration as the CLI.
+- Serve Streamable HTTP on localhost by default, and do not broaden the bind address unless the user explicitly asks.
+- Reuse existing CLI command descriptions for MCP tool descriptions when practical, so CLI help and MCP discovery do not drift.
+- Define MCP tool parameters with typed Go structs and clear JSON schema descriptions rather than parsing CLI usage strings.
+- Annotate MCP tools honestly, especially read-only versus mutating behavior.
+- When MCP behavior changes materially, update the relevant README files and cover tool listing/calling behavior with tests.
+
 ## Fallback Behavior
 
 - Do not write fallback behavior unless the user explicitly asks for fallback behavior in this task.

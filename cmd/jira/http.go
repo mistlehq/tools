@@ -23,6 +23,10 @@ func NewJiraClient(config Config) JiraClient {
 }
 
 func (jc JiraClient) get(path string) ([]byte, error) {
+	return jc.getContext(context.Background(), path)
+}
+
+func (jc JiraClient) getContext(ctx context.Context, path string) ([]byte, error) {
 	if !strings.HasPrefix(path, "/") {
 		return nil, fmt.Errorf("path must start with '/': %s", path)
 	}
@@ -30,7 +34,7 @@ func (jc JiraClient) get(path string) ([]byte, error) {
 	url := jc.baseURL + path
 
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodGet,
 		url,
 		nil,
@@ -66,6 +70,10 @@ func (jc JiraClient) get(path string) ([]byte, error) {
 }
 
 func (jc JiraClient) post(path string, body []byte) ([]byte, error) {
+	return jc.postContext(context.Background(), path, body)
+}
+
+func (jc JiraClient) postContext(ctx context.Context, path string, body []byte) ([]byte, error) {
 	if !strings.HasPrefix(path, "/") {
 		return nil, fmt.Errorf("path must start with '/': %s", path)
 	}
@@ -73,7 +81,7 @@ func (jc JiraClient) post(path string, body []byte) ([]byte, error) {
 	url := jc.baseURL + path
 
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodPost,
 		url,
 		bytes.NewReader(body),
@@ -111,6 +119,10 @@ func (jc JiraClient) post(path string, body []byte) ([]byte, error) {
 }
 
 func (jc JiraClient) put(path string, body []byte) ([]byte, error) {
+	return jc.putContext(context.Background(), path, body)
+}
+
+func (jc JiraClient) putContext(ctx context.Context, path string, body []byte) ([]byte, error) {
 	if !strings.HasPrefix(path, "/") {
 		return nil, fmt.Errorf("path must start with '/': %s", path)
 	}
@@ -118,7 +130,7 @@ func (jc JiraClient) put(path string, body []byte) ([]byte, error) {
 	url := jc.baseURL + path
 
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodPut,
 		url,
 		bytes.NewReader(body),
@@ -156,6 +168,10 @@ func (jc JiraClient) put(path string, body []byte) ([]byte, error) {
 }
 
 func (jc JiraClient) delete(path string) error {
+	return jc.deleteContext(context.Background(), path)
+}
+
+func (jc JiraClient) deleteContext(ctx context.Context, path string) error {
 	if !strings.HasPrefix(path, "/") {
 		return fmt.Errorf("path must start with '/': %s", path)
 	}
@@ -163,7 +179,7 @@ func (jc JiraClient) delete(path string) error {
 	url := jc.baseURL + path
 
 	request, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodDelete,
 		url,
 		nil,
@@ -203,7 +219,11 @@ type JiraUser struct {
 }
 
 func (jc JiraClient) GetMyself() (JiraMyself, error) {
-	body, err := jc.get("/rest/api/3/myself")
+	return jc.GetMyselfContext(context.Background())
+}
+
+func (jc JiraClient) GetMyselfContext(ctx context.Context) (JiraMyself, error) {
+	body, err := jc.getContext(ctx, "/rest/api/3/myself")
 
 	if err != nil {
 		return JiraMyself{}, err
@@ -228,7 +248,11 @@ type JiraProjectList struct {
 }
 
 func (jc JiraClient) ListProjects() (JiraProjectList, error) {
-	body, err := jc.get("/rest/api/3/project/search")
+	return jc.ListProjectsContext(context.Background())
+}
+
+func (jc JiraClient) ListProjectsContext(ctx context.Context) (JiraProjectList, error) {
+	body, err := jc.getContext(ctx, "/rest/api/3/project/search")
 	if err != nil {
 		return JiraProjectList{}, err
 	}
@@ -274,7 +298,11 @@ type AddCommentInput struct {
 }
 
 func (jc JiraClient) GetIssue(issueOrKey string) (JiraIssue, error) {
-	body, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s?fields=summary,status,assignee", issueOrKey))
+	return jc.GetIssueContext(context.Background(), issueOrKey)
+}
+
+func (jc JiraClient) GetIssueContext(ctx context.Context, issueOrKey string) (JiraIssue, error) {
+	body, err := jc.getContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s?fields=summary,status,assignee", issueOrKey))
 	if err != nil {
 		return JiraIssue{}, err
 	}
@@ -389,6 +417,10 @@ func (jc JiraClient) CreateIssue(input CreateIssueInput) (JiraCreatedIssue, erro
 }
 
 func (jc JiraClient) SearchIssues(jql string) (JiraIssueSearchResult, error) {
+	return jc.SearchIssuesContext(context.Background(), jql)
+}
+
+func (jc JiraClient) SearchIssuesContext(ctx context.Context, jql string) (JiraIssueSearchResult, error) {
 	searchRequest := JiraIssueSearchRequest{
 		JQL:    jql,
 		Fields: []string{"summary", "status"},
@@ -399,7 +431,7 @@ func (jc JiraClient) SearchIssues(jql string) (JiraIssueSearchResult, error) {
 		return JiraIssueSearchResult{}, err
 	}
 
-	responseBody, err := jc.post("/rest/api/3/search/jql", requestBody)
+	responseBody, err := jc.postContext(ctx, "/rest/api/3/search/jql", requestBody)
 	if err != nil {
 		return JiraIssueSearchResult{}, err
 	}
