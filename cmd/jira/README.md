@@ -19,6 +19,7 @@ The CLI covers common Jira workflows needed by Mistle users and provider integra
 - workflow transitions
 - summary, description, and editable field updates
 - edit metadata inspection
+- local MCP serving for supported read-only Jira tools
 
 ## Usage
 
@@ -64,6 +65,10 @@ The supported commands are:
 - `jira issue update <issue-key> --field-json <field-id=json>`
 - `jira issue editmeta help`
 - `jira issue editmeta <issue-key>`
+- `jira mcp help`
+- `jira mcp serve`
+- `jira mcp serve --addr <addr>`
+- `jira mcp serve --endpoint <path>`
 
 ### Discovery
 
@@ -92,9 +97,38 @@ jira issue update help
 jira issue update --help
 jira issue editmeta help
 jira issue editmeta --help
+jira mcp help
+jira mcp serve --help
 ```
 
 Status changes, assignment, comments, and ordinary field edits are intentionally separate command families because Jira exposes them as separate API operations.
+
+### MCP
+
+`jira mcp serve` runs Jira as a local MCP server over Streamable HTTP. It reuses the same `JIRA_BASE_URL` configuration as the CLI and relies on the same upstream auth-injecting proxy model.
+
+By default, the server listens on `127.0.0.1:7345` and serves MCP at `/mcp`:
+
+```sh
+jira mcp serve
+```
+
+Override the listen address or endpoint when needed:
+
+```sh
+jira mcp serve --addr 127.0.0.1:8080
+jira mcp serve --endpoint /mcp
+jira mcp serve --addr 127.0.0.1:8080 --endpoint /mcp
+```
+
+The initial MCP tools are read-only:
+
+| Tool | Purpose | Backing command/API |
+| --- | --- | --- |
+| `jira_auth_whoami` | Show the current Jira user. | `jira auth whoami` / `GET /rest/api/3/myself` |
+| `jira_project_list` | List visible Jira projects. | `jira project list` / `GET /rest/api/3/project/search` |
+| `jira_issue_get` | Fetch a single Jira issue by key. | `jira issue get <key>` / `GET /rest/api/3/issue/{issueIdOrKey}` |
+| `jira_issue_search` | Search Jira issues with a JQL query. | `jira issue search '<jql>'` / `POST /rest/api/3/search/jql` |
 
 ## Auth Scopes
 
@@ -119,6 +153,9 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | `jira issue transition help` | Show issue transition help. | Local only | None | None | No Jira request is made. |
 | `jira issue update help` | Show issue update help. | Local only | None | None | No Jira request is made. |
 | `jira issue editmeta help` | Show issue editmeta help. | Local only | None | None | No Jira request is made. |
+| `jira mcp help` | Show MCP help. | Local only | None | None | No Jira request is made. |
+| `jira mcp serve --help` | Show MCP serve help. | Local only | None | None | No Jira request is made. |
+| `jira mcp serve` | Serve Jira MCP tools over Streamable HTTP. | Local server only | None | None | The server itself makes no Jira request until a client calls a tool. |
 
 ### Jira API Commands
 
@@ -196,6 +233,8 @@ jira issue update PROJ-123 --field customfield_10010='Customer impact'
 jira issue update PROJ-123 --field-json labels='["backend","urgent"]'
 jira issue update PROJ-123 --field-json customfield_10020=null
 jira issue editmeta PROJ-123
+jira mcp serve
+jira mcp serve --addr 127.0.0.1:8080 --endpoint /mcp
 ```
 
 ## Build
