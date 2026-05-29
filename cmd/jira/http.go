@@ -316,7 +316,11 @@ func (jc JiraClient) GetIssueContext(ctx context.Context, issueOrKey string) (Ji
 }
 
 func (jc JiraClient) DeleteIssue(issueOrKey string) error {
-	return jc.delete(fmt.Sprintf("/rest/api/3/issue/%s", issueOrKey))
+	return jc.DeleteIssueContext(context.Background(), issueOrKey)
+}
+
+func (jc JiraClient) DeleteIssueContext(ctx context.Context, issueOrKey string) error {
+	return jc.deleteContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s", issueOrKey))
 }
 
 type JiraIssueSearchRequest struct {
@@ -361,6 +365,10 @@ type JiraCreatedIssue struct {
 }
 
 func (jc JiraClient) CreateIssue(input CreateIssueInput) (JiraCreatedIssue, error) {
+	return jc.CreateIssueContext(context.Background(), input)
+}
+
+func (jc JiraClient) CreateIssueContext(ctx context.Context, input CreateIssueInput) (JiraCreatedIssue, error) {
 	fields := map[string]any{
 		"summary": input.Summary,
 	}
@@ -403,7 +411,7 @@ func (jc JiraClient) CreateIssue(input CreateIssueInput) (JiraCreatedIssue, erro
 		return JiraCreatedIssue{}, err
 	}
 
-	responseBody, err := jc.post("/rest/api/3/issue", requestBody)
+	responseBody, err := jc.postContext(ctx, "/rest/api/3/issue", requestBody)
 	if err != nil {
 		return JiraCreatedIssue{}, err
 	}
@@ -449,6 +457,10 @@ type AssignIssueInput struct {
 }
 
 func (jc JiraClient) AssignIssue(issueOrKey string, input AssignIssueInput) error {
+	return jc.AssignIssueContext(context.Background(), issueOrKey, input)
+}
+
+func (jc JiraClient) AssignIssueContext(ctx context.Context, issueOrKey string, input AssignIssueInput) error {
 	requestBody, err := json.Marshal(struct {
 		AccountID *string `json:"accountId"`
 	}{
@@ -458,12 +470,16 @@ func (jc JiraClient) AssignIssue(issueOrKey string, input AssignIssueInput) erro
 		return err
 	}
 
-	_, err = jc.put(fmt.Sprintf("/rest/api/3/issue/%s/assignee", issueOrKey), requestBody)
+	_, err = jc.putContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/assignee", issueOrKey), requestBody)
 	return err
 }
 
 func (jc JiraClient) ListIssueTransitions(issueOrKey string) (JiraTransitionList, error) {
-	responseBody, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s/transitions", issueOrKey))
+	return jc.ListIssueTransitionsContext(context.Background(), issueOrKey)
+}
+
+func (jc JiraClient) ListIssueTransitionsContext(ctx context.Context, issueOrKey string) (JiraTransitionList, error) {
+	responseBody, err := jc.getContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/transitions", issueOrKey))
 	if err != nil {
 		return JiraTransitionList{}, err
 	}
@@ -481,6 +497,10 @@ type TransitionIssueInput struct {
 }
 
 func (jc JiraClient) TransitionIssue(issueOrKey string, input TransitionIssueInput) error {
+	return jc.TransitionIssueContext(context.Background(), issueOrKey, input)
+}
+
+func (jc JiraClient) TransitionIssueContext(ctx context.Context, issueOrKey string, input TransitionIssueInput) error {
 	var payload struct {
 		Transition struct {
 			ID string `json:"id"`
@@ -493,7 +513,7 @@ func (jc JiraClient) TransitionIssue(issueOrKey string, input TransitionIssueInp
 		return err
 	}
 
-	_, err = jc.post(fmt.Sprintf("/rest/api/3/issue/%s/transitions", issueOrKey), requestBody)
+	_, err = jc.postContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/transitions", issueOrKey), requestBody)
 	return err
 }
 
@@ -503,6 +523,10 @@ type UpdateIssueInput struct {
 }
 
 func (jc JiraClient) UpdateIssue(issueOrKey string, input UpdateIssueInput) error {
+	return jc.UpdateIssueContext(context.Background(), issueOrKey, input)
+}
+
+func (jc JiraClient) UpdateIssueContext(ctx context.Context, issueOrKey string, input UpdateIssueInput) error {
 	fields := make(map[string]any)
 	for fieldID, value := range input.Fields {
 		fields[fieldID] = value
@@ -526,12 +550,16 @@ func (jc JiraClient) UpdateIssue(issueOrKey string, input UpdateIssueInput) erro
 		return err
 	}
 
-	_, err = jc.put(fmt.Sprintf("/rest/api/3/issue/%s", issueOrKey), requestBody)
+	_, err = jc.putContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s", issueOrKey), requestBody)
 	return err
 }
 
 func (jc JiraClient) GetIssueEditMeta(issueOrKey string) (JiraIssueEditMeta, error) {
-	responseBody, err := jc.get(fmt.Sprintf("/rest/api/3/issue/%s/editmeta", issueOrKey))
+	return jc.GetIssueEditMetaContext(context.Background(), issueOrKey)
+}
+
+func (jc JiraClient) GetIssueEditMetaContext(ctx context.Context, issueOrKey string) (JiraIssueEditMeta, error) {
+	responseBody, err := jc.getContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/editmeta", issueOrKey))
 	if err != nil {
 		return JiraIssueEditMeta{}, err
 	}
@@ -545,6 +573,10 @@ func (jc JiraClient) GetIssueEditMeta(issueOrKey string) (JiraIssueEditMeta, err
 }
 
 func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (JiraComment, error) {
+	return jc.AddIssueCommentContext(context.Background(), issueOrKey, input)
+}
+
+func (jc JiraClient) AddIssueCommentContext(ctx context.Context, issueOrKey string, input AddCommentInput) (JiraComment, error) {
 	bodyDocument, err := NewJiraTextDocument(input.Body)
 	if err != nil {
 		return JiraComment{}, err
@@ -559,7 +591,7 @@ func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (
 		return JiraComment{}, err
 	}
 
-	responseBody, err := jc.post(fmt.Sprintf("/rest/api/3/issue/%s/comment", issueOrKey), requestBody)
+	responseBody, err := jc.postContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/comment", issueOrKey), requestBody)
 	if err != nil {
 		return JiraComment{}, err
 	}
@@ -573,5 +605,9 @@ func (jc JiraClient) AddIssueComment(issueOrKey string, input AddCommentInput) (
 }
 
 func (jc JiraClient) DeleteIssueComment(issueOrKey string, commentID string) error {
-	return jc.delete(fmt.Sprintf("/rest/api/3/issue/%s/comment/%s", issueOrKey, commentID))
+	return jc.DeleteIssueCommentContext(context.Background(), issueOrKey, commentID)
+}
+
+func (jc JiraClient) DeleteIssueCommentContext(ctx context.Context, issueOrKey string, commentID string) error {
+	return jc.deleteContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/comment/%s", issueOrKey, commentID))
 }
