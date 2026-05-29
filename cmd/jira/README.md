@@ -19,7 +19,7 @@ The CLI covers common Jira workflows needed by Mistle users and provider integra
 - workflow transitions
 - summary, description, and editable field updates
 - edit metadata inspection
-- local MCP serving for supported read-only Jira tools
+- local MCP serving for supported Jira tools
 
 ## Usage
 
@@ -121,14 +121,23 @@ jira mcp serve --endpoint /mcp
 jira mcp serve --addr 127.0.0.1:8080 --endpoint /mcp
 ```
 
-The initial MCP tools are read-only:
+The MCP tools mirror the provider-backed CLI command surface with structured inputs and outputs:
 
-| Tool | Purpose | Backing command/API |
-| --- | --- | --- |
-| `jira_auth_whoami` | Show the current Jira user. | `jira auth whoami` / `GET /rest/api/3/myself` |
-| `jira_project_list` | List visible Jira projects. | `jira project list` / `GET /rest/api/3/project/search` |
-| `jira_issue_get` | Fetch a single Jira issue by key. | `jira issue get <key>` / `GET /rest/api/3/issue/{issueIdOrKey}` |
-| `jira_issue_search` | Search Jira issues with a JQL query. | `jira issue search '<jql>'` / `POST /rest/api/3/search/jql` |
+| Tool | Purpose | Backing command/API | Annotation |
+| --- | --- | --- | --- |
+| `jira_auth_whoami` | Show the current Jira user. | `jira auth whoami` / `GET /rest/api/3/myself` | Read-only |
+| `jira_project_list` | List visible Jira projects. | `jira project list` / `GET /rest/api/3/project/search` | Read-only |
+| `jira_issue_create` | Create a Jira issue. | `jira issue create ...` / `POST /rest/api/3/issue` | Mutating, non-destructive |
+| `jira_issue_get` | Fetch a single Jira issue by key. | `jira issue get <key>` / `GET /rest/api/3/issue/{issueIdOrKey}` | Read-only |
+| `jira_issue_search` | Search Jira issues with a JQL query. | `jira issue search '<jql>'` / `POST /rest/api/3/search/jql` | Read-only |
+| `jira_issue_delete` | Delete a Jira issue by key. | `jira issue delete <key>` / `DELETE /rest/api/3/issue/{issueIdOrKey}` | Destructive |
+| `jira_issue_comment_add` | Add a comment to a Jira issue. | `jira issue comment add <key> --body <text>` / `POST /rest/api/3/issue/{issueIdOrKey}/comment` | Mutating, non-destructive |
+| `jira_issue_comment_delete` | Delete a comment from a Jira issue. | `jira issue comment delete <key> <comment-id>` / `DELETE /rest/api/3/issue/{issueIdOrKey}/comment/{id}` | Destructive |
+| `jira_issue_assign` | Assign or clear the assignee on a Jira issue. | `jira issue assign <key> ...` / `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | Mutating, non-destructive |
+| `jira_issue_transition_list` | List available workflow transitions. | `jira issue transition list <key>` / `GET /rest/api/3/issue/{issueIdOrKey}/transitions` | Read-only |
+| `jira_issue_transition` | Transition a Jira issue to a new workflow state. | `jira issue transition <key> ...` / `POST /rest/api/3/issue/{issueIdOrKey}/transitions` | Mutating, non-destructive |
+| `jira_issue_update` | Update editable Jira issue fields. | `jira issue update <key> ...` / `PUT /rest/api/3/issue/{issueIdOrKey}` | Mutating, non-destructive |
+| `jira_issue_editmeta` | Show edit metadata for a Jira issue. | `jira issue editmeta <key>` / `GET /rest/api/3/issue/{issueIdOrKey}/editmeta` | Read-only |
 
 ## Auth Scopes
 

@@ -998,9 +998,9 @@ Notes:
 }
 
 func (cli CLI) printIssueCreateHelp() {
-	fmt.Fprint(cli.stdout, `jira issue create
+	fmt.Fprintf(cli.stdout, `jira issue create
 
-Create a Jira issue.
+%s
 
 Usage:
   jira issue create --project-key <key> --issue-type <name> --summary <text>
@@ -1023,7 +1023,7 @@ Notes:
   --summary is required.
   --description and --description-file are optional and mutually exclusive.
   Use --description-file - to read the description from stdin.
-`)
+`, jiraIssueCreateDoc.Description)
 }
 
 func (cli CLI) printIssueGetHelp() {
@@ -1061,9 +1061,9 @@ Example:
 }
 
 func (cli CLI) printIssueDeleteHelp() {
-	fmt.Fprint(cli.stdout, `jira issue delete
+	fmt.Fprintf(cli.stdout, `jira issue delete
 
-Delete a Jira issue by key.
+%s
 
 Usage:
   jira issue delete <issue-key>
@@ -1074,7 +1074,7 @@ Output:
 
 Example:
   jira issue delete PROJ-123
-`)
+`, jiraIssueDeleteDoc.Description)
 }
 
 func (cli CLI) printIssueCommentHelp() {
@@ -1097,9 +1097,9 @@ Commands:
 }
 
 func (cli CLI) printIssueCommentAddHelp() {
-	fmt.Fprint(cli.stdout, `jira issue comment add
+	fmt.Fprintf(cli.stdout, `jira issue comment add
 
-Add a comment to a Jira issue.
+%s
 
 Usage:
   jira issue comment add <issue-key> --body <text>
@@ -1114,13 +1114,13 @@ Examples:
 Notes:
   Exactly one of --body or --body-file is required.
   Use --body-file - to read the comment body from stdin.
-`)
+`, jiraIssueCommentAddDoc.Description)
 }
 
 func (cli CLI) printIssueCommentDeleteHelp() {
-	fmt.Fprint(cli.stdout, `jira issue comment delete
+	fmt.Fprintf(cli.stdout, `jira issue comment delete
 
-Delete a comment from a Jira issue.
+%s
 
 Usage:
   jira issue comment delete <issue-key> <comment-id>
@@ -1128,7 +1128,7 @@ Usage:
 
 Example:
   jira issue comment delete PROJ-123 10001
-`)
+`, jiraIssueCommentDeleteDoc.Description)
 }
 
 func (cli CLI) printIssueAssignHelp() {
@@ -1149,9 +1149,9 @@ Notes:
 }
 
 func (cli CLI) printIssueAssignCommandHelp() {
-	fmt.Fprint(cli.stdout, `jira issue assign
+	fmt.Fprintf(cli.stdout, `jira issue assign
 
-Assign or clear the assignee on a Jira issue.
+%s
 
 Usage:
   jira issue assign <issue-key> --me
@@ -1166,7 +1166,7 @@ Examples:
 
 Notes:
   Exactly one of --me, --account-id, or --unassigned is required.
-`)
+`, jiraIssueAssignDoc.Description)
 }
 
 func (cli CLI) printIssueTransitionHelp() {
@@ -1188,9 +1188,9 @@ Notes:
 }
 
 func (cli CLI) printIssueTransitionListHelp() {
-	fmt.Fprint(cli.stdout, `jira issue transition list
+	fmt.Fprintf(cli.stdout, `jira issue transition list
 
-List the workflow transitions currently available for an issue.
+%s
 
 Usage:
   jira issue transition list <issue-key>
@@ -1201,13 +1201,13 @@ Output:
 
 Example:
   jira issue transition list PROJ-123
-`)
+`, jiraIssueTransitionListDoc.Description)
 }
 
 func (cli CLI) printIssueTransitionMoveHelp() {
-	fmt.Fprint(cli.stdout, `jira issue transition
+	fmt.Fprintf(cli.stdout, `jira issue transition
 
-Transition a Jira issue to a new workflow state.
+%s
 
 Usage:
   jira issue transition <issue-key> --to <transition-name>
@@ -1221,7 +1221,7 @@ Examples:
 Notes:
   Exactly one of --to or --to-id is required.
   Use 'jira issue transition list <issue-key>' to inspect valid transitions first.
-`)
+`, jiraIssueTransitionDoc.Description)
 }
 
 func (cli CLI) printIssueUpdateHelp() {
@@ -1246,9 +1246,9 @@ Notes:
 }
 
 func (cli CLI) printIssueUpdateFieldsHelp() {
-	fmt.Fprint(cli.stdout, `jira issue update
+	fmt.Fprintf(cli.stdout, `jira issue update
 
-Update summary, description, and other editable fields on a Jira issue.
+%s
 
 Usage:
   jira issue update <issue-key> --summary <text>
@@ -1273,13 +1273,13 @@ Notes:
   Use --field-json for arrays, objects, numbers, booleans, and null.
   Inspect editable field IDs and field types with 'jira issue editmeta <issue-key>'.
   Status changes use 'jira issue transition'.
-`)
+`, jiraIssueUpdateDoc.Description)
 }
 
 func (cli CLI) printIssueEditMetaCommandHelp() {
-	fmt.Fprint(cli.stdout, `jira issue editmeta
+	fmt.Fprintf(cli.stdout, `jira issue editmeta
 
-Show edit metadata for a Jira issue.
+%s
 
 Usage:
   jira issue editmeta <issue-key>
@@ -1290,7 +1290,7 @@ Output:
 
 Example:
   jira issue editmeta PROJ-123
-`)
+`, jiraIssueEditMetaDoc.Description)
 }
 
 func (cli CLI) printHelp() {
