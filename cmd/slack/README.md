@@ -23,6 +23,7 @@ The current implementation covers:
 - file inspection
 - file download
 - file upload
+- local MCP serving for supported Slack tools
 
 ## Usage
 
@@ -60,6 +61,10 @@ The supported commands are:
 - `slack emoji help`
 - `slack emoji list`
 - `slack emoji list --include-categories`
+- `slack mcp help`
+- `slack mcp serve`
+- `slack mcp serve --addr <addr>`
+- `slack mcp serve --endpoint <path>`
 
 All API commands also accept `--json` for compact JSON output.
 
@@ -75,7 +80,47 @@ slack chat help
 slack reactions help
 slack files help
 slack emoji help
+slack mcp help
+slack mcp serve --help
 ```
+
+### MCP
+
+`slack mcp serve` runs Slack as a local MCP server over Streamable HTTP. It reuses the same `SLACK_BASE_URL` configuration as the CLI and relies on the same upstream auth-injecting proxy model.
+
+By default, the server listens on `127.0.0.1:7346` and serves MCP at `/mcp`:
+
+```sh
+slack mcp serve
+```
+
+Override the listen address or endpoint when needed:
+
+```sh
+slack mcp serve --addr 127.0.0.1:8080
+slack mcp serve --endpoint /mcp
+slack mcp serve --addr 127.0.0.1:8080 --endpoint /mcp
+```
+
+The MCP tools mirror the provider-backed CLI command surface with structured inputs and outputs:
+
+| Tool | Purpose | Backing command/API | Annotation |
+| --- | --- | --- | --- |
+| `slack_auth_test` | Check Slack authentication state. | `slack auth test` / `POST /auth.test` | Read-only |
+| `slack_conversations_list` | List Slack conversations. | `slack conversations list` / `GET /conversations.list` | Read-only |
+| `slack_conversations_info` | Show details for a Slack conversation. | `slack conversations info` / `GET /conversations.info` | Read-only |
+| `slack_conversations_history` | Fetch Slack conversation history. | `slack conversations history` / `GET /conversations.history` | Read-only |
+| `slack_conversations_replies` | Fetch replies in a Slack thread. | `slack conversations replies` / `GET /conversations.replies` | Read-only |
+| `slack_chat_post_message` | Post a Slack message. | `slack chat post-message` / `POST /chat.postMessage` | Mutating, non-destructive |
+| `slack_chat_update` | Update a Slack message. | `slack chat update` / `POST /chat.update` | Mutating, non-destructive |
+| `slack_chat_delete` | Delete a Slack message. | `slack chat delete` / `POST /chat.delete` | Destructive |
+| `slack_chat_get_permalink` | Get a permalink for a Slack message. | `slack chat get-permalink` / `GET /chat.getPermalink` | Read-only |
+| `slack_reactions_add` | Add a Slack message reaction. | `slack reactions add` / `POST /reactions.add` | Mutating, non-destructive |
+| `slack_reactions_remove` | Remove a Slack message reaction. | `slack reactions remove` / `POST /reactions.remove` | Destructive |
+| `slack_files_info` | Show Slack file metadata. | `slack files info` / `GET /files.info` | Read-only |
+| `slack_files_download` | Download a Slack file to a local path. | `slack files download` / `GET /files.info` + file download URL | Mutating local filesystem, non-destructive |
+| `slack_files_upload` | Upload a local file to Slack. | `slack files upload` / `POST /files.getUploadURLExternal` + upload URL + `POST /files.completeUploadExternal` | Mutating, non-destructive |
+| `slack_emoji_list` | List Slack emoji. | `slack emoji list` / `GET /emoji.list` | Read-only |
 
 ### Output
 
@@ -126,6 +171,8 @@ slack files upload --path ./report.txt --channel C0123456789
 slack files upload --path ./report.txt --channel C0123456789 --initial-comment 'latest report'
 slack emoji list
 slack emoji list --include-categories --json
+slack mcp serve
+slack mcp serve --addr 127.0.0.1:8080 --endpoint /mcp
 ```
 
 ## Build

@@ -55,6 +55,8 @@ func (cli CLI) run(args []string) error {
 		return cli.runFiles(args[2:])
 	case "emoji":
 		return cli.runEmoji(args[2:])
+	case "mcp":
+		return cli.runMCP(args[2:])
 	default:
 		return fmt.Errorf("unsupported command: %s", args[1])
 	}
@@ -206,6 +208,7 @@ func (cli CLI) printHelp() {
 	fmt.Fprintln(cli.stdout, "  slack reactions help")
 	fmt.Fprintln(cli.stdout, "  slack files help")
 	fmt.Fprintln(cli.stdout, "  slack emoji help")
+	fmt.Fprintln(cli.stdout, "  slack mcp help")
 	fmt.Fprintln(cli.stdout, "")
 	fmt.Fprintln(cli.stdout, "Commands:")
 	fmt.Fprintln(cli.stdout, "  help")
@@ -216,6 +219,7 @@ func (cli CLI) printHelp() {
 	fmt.Fprintln(cli.stdout, "  reactions")
 	fmt.Fprintln(cli.stdout, "  files")
 	fmt.Fprintln(cli.stdout, "  emoji")
+	fmt.Fprintln(cli.stdout, "  mcp")
 }
 
 func (cli CLI) printAuthHelp() {
