@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -54,15 +55,19 @@ type slackConversationsRepliesToolInput struct {
 }
 
 type slackChatPostMessageToolInput struct {
-	Channel  string  `json:"channel" jsonschema:"Slack conversation ID."`
-	Text     string  `json:"text" jsonschema:"Message text."`
-	ThreadTS *string `json:"threadTs,omitempty" jsonschema:"Optional thread root timestamp."`
+	Channel     string            `json:"channel" jsonschema:"Slack conversation ID."`
+	Text        string            `json:"text,omitempty" jsonschema:"Optional fallback text used for notifications and accessibility."`
+	Blocks      *[]map[string]any `json:"blocks,omitempty" jsonschema:"Optional Slack Block Kit blocks array. Block elements are provided inside each block object using Slack's JSON shape."`
+	Attachments *[]map[string]any `json:"attachments,omitempty" jsonschema:"Optional Slack message attachments array. Attachments may include nested Block Kit blocks."`
+	ThreadTS    *string           `json:"threadTs,omitempty" jsonschema:"Optional thread root timestamp."`
 }
 
 type slackChatUpdateToolInput struct {
-	Channel string `json:"channel" jsonschema:"Slack conversation ID."`
-	TS      string `json:"ts" jsonschema:"Message timestamp to update."`
-	Text    string `json:"text" jsonschema:"Replacement message text."`
+	Channel     string            `json:"channel" jsonschema:"Slack conversation ID."`
+	TS          string            `json:"ts" jsonschema:"Message timestamp to update."`
+	Text        string            `json:"text,omitempty" jsonschema:"Optional replacement fallback text used for notifications and accessibility."`
+	Blocks      *[]map[string]any `json:"blocks,omitempty" jsonschema:"Optional replacement Slack Block Kit blocks array. Empty array removes existing blocks."`
+	Attachments *[]map[string]any `json:"attachments,omitempty" jsonschema:"Optional replacement Slack message attachments array. Empty array removes existing attachments."`
 }
 
 type slackChatDeleteToolInput struct {
@@ -224,20 +229,36 @@ func newSlackMCPServer(sc SlackClient) *mcp.Server {
 		if strings.TrimSpace(input.Channel) == "" {
 			return nil, SlackChatPostMessage{}, fmt.Errorf("channel is required")
 		}
-		if strings.TrimSpace(input.Text) == "" {
-			return nil, SlackChatPostMessage{}, fmt.Errorf("text is required and must not be empty")
+		if strings.TrimSpace(input.Text) == "" && input.Blocks == nil && input.Attachments == nil {
+			return nil, SlackChatPostMessage{}, fmt.Errorf("at least one of text, blocks, or attachments is required")
 		}
-		out, err := sc.PostMessageContext(ctx, SlackChatPostMessageInput{Channel: input.Channel, Text: input.Text, ThreadTS: input.ThreadTS})
+		blocks, err := rawMessageFromObjectArray("blocks", input.Blocks)
+		if err != nil {
+			return nil, SlackChatPostMessage{}, err
+		}
+		attachments, err := rawMessageFromObjectArray("attachments", input.Attachments)
+		if err != nil {
+			return nil, SlackChatPostMessage{}, err
+		}
+		out, err := sc.PostMessageContext(ctx, SlackChatPostMessageInput{Channel: input.Channel, Text: input.Text, Blocks: blocks, Attachments: attachments, ThreadTS: input.ThreadTS})
 		return nil, out, err
 	})
 	mcp.AddTool(server, slackTool("slack_chat_update", slackChatUpdateDoc, mutatingAnnotations), func(ctx context.Context, _ *mcp.CallToolRequest, input *slackChatUpdateToolInput) (*mcp.CallToolResult, SlackChatUpdate, error) {
 		if err := validateSlackChannelAndTS(input.Channel, input.TS); err != nil {
 			return nil, SlackChatUpdate{}, err
 		}
-		if strings.TrimSpace(input.Text) == "" {
-			return nil, SlackChatUpdate{}, fmt.Errorf("text is required and must not be empty")
+		if strings.TrimSpace(input.Text) == "" && input.Blocks == nil && input.Attachments == nil {
+			return nil, SlackChatUpdate{}, fmt.Errorf("at least one of text, blocks, or attachments is required")
 		}
-		out, err := sc.UpdateMessageContext(ctx, SlackChatUpdateInput(*input))
+		blocks, err := rawMessageFromObjectArray("blocks", input.Blocks)
+		if err != nil {
+			return nil, SlackChatUpdate{}, err
+		}
+		attachments, err := rawMessageFromObjectArray("attachments", input.Attachments)
+		if err != nil {
+			return nil, SlackChatUpdate{}, err
+		}
+		out, err := sc.UpdateMessageContext(ctx, SlackChatUpdateInput{Channel: input.Channel, TS: input.TS, Text: input.Text, Blocks: blocks, Attachments: attachments})
 		return nil, out, err
 	})
 	mcp.AddTool(server, slackTool("slack_chat_delete", slackChatDeleteDoc, destructiveAnnotations), func(ctx context.Context, _ *mcp.CallToolRequest, input *slackChatDeleteToolInput) (*mcp.CallToolResult, SlackChatDelete, error) {
@@ -320,6 +341,20 @@ func validateSlackChannelAndTS(channel string, ts string) error {
 		return fmt.Errorf("ts is required")
 	}
 	return nil
+}
+
+func rawMessageFromObjectArray(name string, value *[]map[string]any) (*json.RawMessage, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	body, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("%s must be a JSON array of objects: %w", name, err)
+	}
+
+	raw := json.RawMessage(body)
+	return &raw, nil
 }
 
 func buildSlackReactionInput(input *slackReactionToolInput) (SlackReactionInput, error) {
