@@ -59,12 +59,14 @@ type SlackConversationsInfo struct {
 }
 
 type SlackMessage struct {
-	TS       string `json:"ts"`
-	ThreadTS string `json:"thread_ts"`
-	User     string `json:"user"`
-	Type     string `json:"type"`
-	Subtype  string `json:"subtype"`
-	Text     string `json:"text"`
+	TS          string           `json:"ts"`
+	ThreadTS    string           `json:"thread_ts"`
+	User        string           `json:"user"`
+	Type        string           `json:"type"`
+	Subtype     string           `json:"subtype"`
+	Text        string           `json:"text"`
+	Blocks      []map[string]any `json:"blocks"`
+	Attachments []map[string]any `json:"attachments"`
 }
 
 type SlackConversationsHistory struct {
@@ -80,8 +82,10 @@ type SlackConversationsReplies struct {
 }
 
 type SlackChatMessage struct {
-	Text     string `json:"text"`
-	ThreadTS string `json:"thread_ts"`
+	Text        string           `json:"text"`
+	ThreadTS    string           `json:"thread_ts"`
+	Blocks      []map[string]any `json:"blocks"`
+	Attachments []map[string]any `json:"attachments"`
 }
 
 type SlackChatPostMessage struct {
@@ -536,9 +540,11 @@ func (sc SlackClient) GetConversationRepliesContext(ctx context.Context, input S
 }
 
 type SlackChatPostMessageInput struct {
-	Channel  string  `json:"channel"`
-	Text     string  `json:"text"`
-	ThreadTS *string `json:"thread_ts,omitempty"`
+	Channel     string           `json:"channel"`
+	Text        string           `json:"text,omitempty"`
+	Blocks      *json.RawMessage `json:"blocks,omitempty"`
+	Attachments *json.RawMessage `json:"attachments,omitempty"`
+	ThreadTS    *string          `json:"thread_ts,omitempty"`
 }
 
 func (sc SlackClient) PostMessage(input SlackChatPostMessageInput) (SlackChatPostMessage, error) {
@@ -565,9 +571,11 @@ func (sc SlackClient) PostMessageContext(ctx context.Context, input SlackChatPos
 }
 
 type SlackChatUpdateInput struct {
-	Channel string `json:"channel"`
-	TS      string `json:"ts"`
-	Text    string `json:"text"`
+	Channel     string           `json:"channel"`
+	TS          string           `json:"ts"`
+	Text        string           `json:"text,omitempty"`
+	Blocks      *json.RawMessage `json:"blocks,omitempty"`
+	Attachments *json.RawMessage `json:"attachments,omitempty"`
 }
 
 func (sc SlackClient) UpdateMessage(input SlackChatUpdateInput) (SlackChatUpdate, error) {

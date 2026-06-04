@@ -39,13 +39,13 @@ var slackConversationsRepliesDoc = commandDoc{
 var slackChatPostMessageDoc = commandDoc{
 	Command:     "slack chat post-message",
 	Summary:     "Post a Slack message",
-	Description: "Post a Slack message.",
+	Description: "Post a Slack message to a conversation or thread with text, Block Kit blocks, block elements, and attachments.",
 }
 
 var slackChatUpdateDoc = commandDoc{
 	Command:     "slack chat update",
 	Summary:     "Update a Slack message",
-	Description: "Update a Slack message.",
+	Description: "Update a Slack message with text, Block Kit blocks, block elements, and attachments.",
 }
 
 var slackChatDeleteDoc = commandDoc{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/mistlehq/tools/internal/argparse"
@@ -478,20 +479,28 @@ func (cli CLI) printChatHelp() {
 	fmt.Fprintln(cli.stdout, "  slack chat help")
 	fmt.Fprintln(cli.stdout, "  slack chat post-message --channel <conversation-id> --text <text>")
 	fmt.Fprintln(cli.stdout, "  slack chat post-message --channel <conversation-id> --text-file <path>")
+	fmt.Fprintln(cli.stdout, "  slack chat post-message --channel <conversation-id> --blocks <json-array> [--text <fallback-text>]")
+	fmt.Fprintln(cli.stdout, "  slack chat post-message --channel <conversation-id> --blocks-file <path> [--attachments-file <path>]")
 	fmt.Fprintln(cli.stdout, "  slack chat post-message --channel <conversation-id> --thread-ts <ts> --text <text>")
 	fmt.Fprintln(cli.stdout, "  slack chat update --channel <conversation-id> --ts <ts> --text <text>")
 	fmt.Fprintln(cli.stdout, "  slack chat update --channel <conversation-id> --ts <ts> --text-file <path>")
+	fmt.Fprintln(cli.stdout, "  slack chat update --channel <conversation-id> --ts <ts> --blocks <json-array> [--text <fallback-text>]")
+	fmt.Fprintln(cli.stdout, "  slack chat update --channel <conversation-id> --ts <ts> --attachments-file <path>")
 	fmt.Fprintln(cli.stdout, "  slack chat delete --channel <conversation-id> --ts <ts>")
 	fmt.Fprintln(cli.stdout, "  slack chat get-permalink --channel <conversation-id> --message-ts <ts>")
 }
 
 func (cli CLI) runChatPostMessage(sc SlackClient, args []string) error {
 	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
-		"channel":   {TakesValue: true},
-		"text":      {TakesValue: true},
-		"text-file": {TakesValue: true},
-		"thread-ts": {TakesValue: true},
-		"json":      {},
+		"channel":          {TakesValue: true},
+		"text":             {TakesValue: true},
+		"text-file":        {TakesValue: true},
+		"blocks":           {TakesValue: true},
+		"blocks-file":      {TakesValue: true},
+		"attachments":      {TakesValue: true},
+		"attachments-file": {TakesValue: true},
+		"thread-ts":        {TakesValue: true},
+		"json":             {},
 	})
 	if err != nil {
 		return err
@@ -506,14 +515,30 @@ func (cli CLI) runChatPostMessage(sc SlackClient, args []string) error {
 		return fmt.Errorf("chat post-message requires --channel")
 	}
 
-	text, err := textinput.Read(cli.stdin, "text", parsedArgs.First("text"), "text-file", parsedArgs.First("text-file"))
+	text, hasText, err := readOptionalText(cli.stdin, parsedArgs, "text", "text-file")
 	if err != nil {
 		return err
 	}
 
+	blocks, err := readOptionalJSONArray(cli.stdin, parsedArgs, "blocks", "blocks-file")
+	if err != nil {
+		return err
+	}
+
+	attachments, err := readOptionalJSONArray(cli.stdin, parsedArgs, "attachments", "attachments-file")
+	if err != nil {
+		return err
+	}
+
+	if !hasText && blocks == nil && attachments == nil {
+		return fmt.Errorf("chat post-message requires at least one of --text, --text-file, --blocks, --blocks-file, --attachments, or --attachments-file")
+	}
+
 	input := SlackChatPostMessageInput{
-		Channel: channel,
-		Text:    text,
+		Channel:     channel,
+		Text:        text,
+		Blocks:      blocks,
+		Attachments: attachments,
 	}
 
 	if threadTS := parsedArgs.First("thread-ts"); threadTS != "" {
@@ -535,11 +560,15 @@ func (cli CLI) runChatPostMessage(sc SlackClient, args []string) error {
 
 func (cli CLI) runChatUpdate(sc SlackClient, args []string) error {
 	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
-		"channel":   {TakesValue: true},
-		"ts":        {TakesValue: true},
-		"text":      {TakesValue: true},
-		"text-file": {TakesValue: true},
-		"json":      {},
+		"channel":          {TakesValue: true},
+		"ts":               {TakesValue: true},
+		"text":             {TakesValue: true},
+		"text-file":        {TakesValue: true},
+		"blocks":           {TakesValue: true},
+		"blocks-file":      {TakesValue: true},
+		"attachments":      {TakesValue: true},
+		"attachments-file": {TakesValue: true},
+		"json":             {},
 	})
 	if err != nil {
 		return err
@@ -559,15 +588,31 @@ func (cli CLI) runChatUpdate(sc SlackClient, args []string) error {
 		return fmt.Errorf("chat update requires --ts")
 	}
 
-	text, err := textinput.Read(cli.stdin, "text", parsedArgs.First("text"), "text-file", parsedArgs.First("text-file"))
+	text, hasText, err := readOptionalText(cli.stdin, parsedArgs, "text", "text-file")
 	if err != nil {
 		return err
 	}
 
+	blocks, err := readOptionalJSONArray(cli.stdin, parsedArgs, "blocks", "blocks-file")
+	if err != nil {
+		return err
+	}
+
+	attachments, err := readOptionalJSONArray(cli.stdin, parsedArgs, "attachments", "attachments-file")
+	if err != nil {
+		return err
+	}
+
+	if !hasText && blocks == nil && attachments == nil {
+		return fmt.Errorf("chat update requires at least one of --text, --text-file, --blocks, --blocks-file, --attachments, or --attachments-file")
+	}
+
 	updated, err := sc.UpdateMessage(SlackChatUpdateInput{
-		Channel: channel,
-		TS:      ts,
-		Text:    text,
+		Channel:     channel,
+		TS:          ts,
+		Text:        text,
+		Blocks:      blocks,
+		Attachments: attachments,
 	})
 	if err != nil {
 		return err
@@ -584,6 +629,63 @@ func (cli CLI) runChatUpdate(sc SlackClient, args []string) error {
 
 	writeMessageResult(cli.stdout, updated.Channel, updated.TS, threadTS, updated.Message.Text)
 	return nil
+}
+
+func readOptionalText(stdin io.Reader, parsedArgs argparse.Parsed, valueFlagName string, fileFlagName string) (string, bool, error) {
+	if !parsedArgs.Has(valueFlagName) && !parsedArgs.Has(fileFlagName) {
+		return "", false, nil
+	}
+
+	text, err := textinput.Read(stdin, valueFlagName, parsedArgs.First(valueFlagName), fileFlagName, parsedArgs.First(fileFlagName))
+	if err != nil {
+		return "", false, err
+	}
+
+	return text, true, nil
+}
+
+func readOptionalJSONArray(stdin io.Reader, parsedArgs argparse.Parsed, valueFlagName string, fileFlagName string) (*json.RawMessage, error) {
+	hasValue := parsedArgs.Has(valueFlagName)
+	hasFile := parsedArgs.Has(fileFlagName)
+	if !hasValue && !hasFile {
+		return nil, nil
+	}
+
+	if hasValue && hasFile {
+		return nil, fmt.Errorf("--%s and --%s are mutually exclusive", valueFlagName, fileFlagName)
+	}
+
+	var body []byte
+	var err error
+	if hasValue {
+		value := parsedArgs.First(valueFlagName)
+		if strings.TrimSpace(value) == "" {
+			return nil, fmt.Errorf("--%s must not be empty", valueFlagName)
+		}
+		body = []byte(value)
+	} else if strings.TrimSpace(parsedArgs.First(fileFlagName)) == "" {
+		return nil, fmt.Errorf("--%s must not be empty", fileFlagName)
+	} else if parsedArgs.First(fileFlagName) == "-" {
+		body, err = io.ReadAll(stdin)
+	} else {
+		body, err = os.ReadFile(parsedArgs.First(fileFlagName))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		return nil, fmt.Errorf("--%s must not be empty", fileFlagName)
+	}
+
+	var values []json.RawMessage
+	if err := json.Unmarshal(trimmed, &values); err != nil {
+		return nil, fmt.Errorf("--%s must be a JSON array: %w", valueFlagName, err)
+	}
+
+	raw := json.RawMessage(trimmed)
+	return &raw, nil
 }
 
 func (cli CLI) runChatDelete(sc SlackClient, args []string) error {

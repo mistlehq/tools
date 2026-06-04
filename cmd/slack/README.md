@@ -43,9 +43,13 @@ The supported commands are:
 - `slack chat help`
 - `slack chat post-message --channel <conversation-id> --text <text>`
 - `slack chat post-message --channel <conversation-id> --text-file <path>`
+- `slack chat post-message --channel <conversation-id> --blocks <json-array> [--text <fallback-text>]`
+- `slack chat post-message --channel <conversation-id> --blocks-file <path> [--attachments-file <path>]`
 - `slack chat post-message --channel <conversation-id> --thread-ts <ts> --text <text>`
 - `slack chat update --channel <conversation-id> --ts <ts> --text <text>`
 - `slack chat update --channel <conversation-id> --ts <ts> --text-file <path>`
+- `slack chat update --channel <conversation-id> --ts <ts> --blocks <json-array> [--text <fallback-text>]`
+- `slack chat update --channel <conversation-id> --ts <ts> --attachments-file <path>`
 - `slack chat delete --channel <conversation-id> --ts <ts>`
 - `slack chat get-permalink --channel <conversation-id> --message-ts <ts>`
 - `slack reactions help`
@@ -111,8 +115,8 @@ The MCP tools mirror the provider-backed CLI command surface with structured inp
 | `slack_conversations_info` | Show details for a Slack conversation. | `slack conversations info` / `GET /conversations.info` | Read-only |
 | `slack_conversations_history` | Fetch Slack conversation history. | `slack conversations history` / `GET /conversations.history` | Read-only |
 | `slack_conversations_replies` | Fetch replies in a Slack thread. | `slack conversations replies` / `GET /conversations.replies` | Read-only |
-| `slack_chat_post_message` | Post a Slack message. | `slack chat post-message` / `POST /chat.postMessage` | Mutating, non-destructive |
-| `slack_chat_update` | Update a Slack message. | `slack chat update` / `POST /chat.update` | Mutating, non-destructive |
+| `slack_chat_post_message` | Post a Slack message with text, Block Kit blocks, block elements, and attachments. | `slack chat post-message` / `POST /chat.postMessage` | Mutating, non-destructive |
+| `slack_chat_update` | Update a Slack message with text, Block Kit blocks, block elements, and attachments. | `slack chat update` / `POST /chat.update` | Mutating, non-destructive |
 | `slack_chat_delete` | Delete a Slack message. | `slack chat delete` / `POST /chat.delete` | Destructive |
 | `slack_chat_get_permalink` | Get a permalink for a Slack message. | `slack chat get-permalink` / `GET /chat.getPermalink` | Read-only |
 | `slack_reactions_add` | Add a Slack message reaction. | `slack reactions add` / `POST /reactions.add` | Mutating, non-destructive |
@@ -160,7 +164,9 @@ slack conversations history --channel C0123456789 --limit 2
 slack conversations history --channel C0123456789 --limit 2 --json
 slack conversations replies --channel C0123456789 --ts 1775661449.396699 --limit 10
 slack chat post-message --channel C0123456789 --text 'hello from slack cli'
+slack chat post-message --channel C0123456789 --text 'deploy status' --blocks '[{"type":"section","text":{"type":"mrkdwn","text":"*Deploy:* complete"}}]'
 slack chat update --channel C0123456789 --ts 1775060927.238849 --text 'updated text'
+slack chat update --channel C0123456789 --ts 1775060927.238849 --blocks-file ./blocks.json
 slack chat delete --channel C0123456789 --ts 1775060927.238849
 slack chat get-permalink --channel C0123456789 --message-ts 1775060927.238849
 slack reactions add --channel C0123456789 --timestamp 1775060927.238849 --name eyes
