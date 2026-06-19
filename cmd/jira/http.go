@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -610,4 +611,194 @@ func (jc JiraClient) DeleteIssueComment(issueOrKey string, commentID string) err
 
 func (jc JiraClient) DeleteIssueCommentContext(ctx context.Context, issueOrKey string, commentID string) error {
 	return jc.deleteContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/comment/%s", issueOrKey, commentID))
+}
+
+type JiraStatusScope struct {
+	Type    string             `json:"type"`
+	Project *JiraStatusProject `json:"project,omitempty"`
+}
+
+type JiraStatusProject struct {
+	ID string `json:"id"`
+}
+
+type JiraStatus struct {
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Description    string          `json:"description,omitempty"`
+	StatusCategory string          `json:"statusCategory"`
+	Scope          JiraStatusScope `json:"scope"`
+}
+
+type JiraStatusPage struct {
+	IsLast     bool         `json:"isLast"`
+	MaxResults int          `json:"maxResults"`
+	NextPage   string       `json:"nextPage,omitempty"`
+	Self       string       `json:"self,omitempty"`
+	StartAt    int          `json:"startAt"`
+	Total      int          `json:"total"`
+	Values     []JiraStatus `json:"values"`
+}
+
+type JiraStatusCreate struct {
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	StatusCategory string `json:"statusCategory"`
+}
+
+type JiraStatusUpdate struct {
+	ID             string  `json:"id"`
+	Name           *string `json:"name,omitempty"`
+	Description    *string `json:"description,omitempty"`
+	StatusCategory *string `json:"statusCategory,omitempty"`
+}
+
+type JiraStatusSearchInput struct {
+	ProjectID      string
+	StartAt        *int
+	MaxResults     *int
+	SearchString   string
+	StatusCategory string
+}
+
+type JiraStatusCreateInput struct {
+	Scope    JiraStatusScope    `json:"scope"`
+	Statuses []JiraStatusCreate `json:"statuses"`
+}
+
+type JiraStatusUpdateInput struct {
+	Statuses []JiraStatusUpdate `json:"statuses"`
+}
+
+type JiraBoardConfiguration map[string]any
+
+func (jc JiraClient) GetStatuses(ids []string) ([]JiraStatus, error) {
+	return jc.GetStatusesContext(context.Background(), ids)
+}
+
+func (jc JiraClient) GetStatusesContext(ctx context.Context, ids []string) ([]JiraStatus, error) {
+	query := url.Values{}
+	for _, id := range ids {
+		query.Add("id", id)
+	}
+
+	body, err := jc.getContext(ctx, "/rest/api/3/statuses?"+query.Encode())
+	if err != nil {
+		return nil, err
+	}
+
+	var statuses []JiraStatus
+	if err := json.Unmarshal(body, &statuses); err != nil {
+		return nil, err
+	}
+
+	return statuses, nil
+}
+
+func (jc JiraClient) SearchStatuses(input JiraStatusSearchInput) (JiraStatusPage, error) {
+	return jc.SearchStatusesContext(context.Background(), input)
+}
+
+func (jc JiraClient) SearchStatusesContext(ctx context.Context, input JiraStatusSearchInput) (JiraStatusPage, error) {
+	query := url.Values{}
+	if input.ProjectID != "" {
+		query.Set("projectId", input.ProjectID)
+	}
+	if input.StartAt != nil {
+		query.Set("startAt", fmt.Sprintf("%d", *input.StartAt))
+	}
+	if input.MaxResults != nil {
+		query.Set("maxResults", fmt.Sprintf("%d", *input.MaxResults))
+	}
+	if input.SearchString != "" {
+		query.Set("searchString", input.SearchString)
+	}
+	if input.StatusCategory != "" {
+		query.Set("statusCategory", input.StatusCategory)
+	}
+
+	path := "/rest/api/3/statuses/search"
+	if encodedQuery := query.Encode(); encodedQuery != "" {
+		path += "?" + encodedQuery
+	}
+
+	body, err := jc.getContext(ctx, path)
+	if err != nil {
+		return JiraStatusPage{}, err
+	}
+
+	var statusPage JiraStatusPage
+	if err := json.Unmarshal(body, &statusPage); err != nil {
+		return JiraStatusPage{}, err
+	}
+
+	return statusPage, nil
+}
+
+func (jc JiraClient) CreateStatuses(input JiraStatusCreateInput) ([]JiraStatus, error) {
+	return jc.CreateStatusesContext(context.Background(), input)
+}
+
+func (jc JiraClient) CreateStatusesContext(ctx context.Context, input JiraStatusCreateInput) ([]JiraStatus, error) {
+	requestBody, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := jc.postContext(ctx, "/rest/api/3/statuses", requestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var statuses []JiraStatus
+	if err := json.Unmarshal(responseBody, &statuses); err != nil {
+		return nil, err
+	}
+
+	return statuses, nil
+}
+
+func (jc JiraClient) UpdateStatuses(input JiraStatusUpdateInput) error {
+	return jc.UpdateStatusesContext(context.Background(), input)
+}
+
+func (jc JiraClient) UpdateStatusesContext(ctx context.Context, input JiraStatusUpdateInput) error {
+	requestBody, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+
+	_, err = jc.putContext(ctx, "/rest/api/3/statuses", requestBody)
+	return err
+}
+
+func (jc JiraClient) DeleteStatuses(ids []string) error {
+	return jc.DeleteStatusesContext(context.Background(), ids)
+}
+
+func (jc JiraClient) DeleteStatusesContext(ctx context.Context, ids []string) error {
+	query := url.Values{}
+	for _, id := range ids {
+		query.Add("id", id)
+	}
+
+	return jc.deleteContext(ctx, "/rest/api/3/statuses?"+query.Encode())
+}
+
+func (jc JiraClient) GetBoardConfiguration(boardID string) (JiraBoardConfiguration, error) {
+	return jc.GetBoardConfigurationContext(context.Background(), boardID)
+}
+
+func (jc JiraClient) GetBoardConfigurationContext(ctx context.Context, boardID string) (JiraBoardConfiguration, error) {
+	body, err := jc.getContext(ctx, fmt.Sprintf("/rest/agile/1.0/board/%s/configuration", boardID))
+	if err != nil {
+		return nil, err
+	}
+
+	var configuration JiraBoardConfiguration
+	if err := json.Unmarshal(body, &configuration); err != nil {
+		return nil, err
+	}
+
+	return configuration, nil
 }

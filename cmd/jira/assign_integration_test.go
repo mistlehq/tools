@@ -66,7 +66,7 @@ func TestIssueAssignUnassigned(t *testing.T) {
 }
 
 func TestIssueAssignRequiresExactlyOneTargetFlag(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "assign", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "assign", jiraTestValidationIssueKey)
 	if err == nil {
 		t.Fatal("expected issue assign without target flag to fail")
 	}
@@ -77,7 +77,7 @@ func TestIssueAssignRequiresExactlyOneTargetFlag(t *testing.T) {
 }
 
 func TestIssueAssignRejectsConflictingTargetFlags(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "assign", "KAN-1", "--me", "--unassigned")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "assign", jiraTestValidationIssueKey, "--me", "--unassigned")
 	if err == nil {
 		t.Fatal("expected conflicting issue assign flags to fail")
 	}

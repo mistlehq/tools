@@ -15,7 +15,7 @@ func TestIssueCreate(t *testing.T) {
 	}
 
 	jc := NewJiraClient(config)
-	template, err := getJiraTestIssueTemplate(jc, jiraTestTemplateIssueKey)
+	template, err := getJiraTestIssueTemplate(jc, getJiraTestTemplateIssueKey(t))
 	if err != nil {
 		t.Fatal(err)
 	}

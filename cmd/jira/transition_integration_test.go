@@ -90,7 +90,7 @@ func TestIssueTransitionByName(t *testing.T) {
 }
 
 func TestIssueTransitionRejectsUnknownName(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "transition", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "transition", jiraTestValidationIssueKey)
 	if err == nil {
 		t.Fatal("expected missing transition target to fail")
 	}
