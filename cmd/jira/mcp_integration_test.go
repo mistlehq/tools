@@ -45,12 +45,34 @@ func TestMCPServeHelp(t *testing.T) {
 		"--endpoint <path>",
 		"jira_issue_get",
 		"jira_issue_search",
+		"jira_status_create",
 	}
 
 	for _, want := range expected {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected mcp serve help to mention %q", want)
 		}
+	}
+}
+
+func TestParseJiraMCPServeArgs(t *testing.T) {
+	config, err := parseJiraMCPServeArgs(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Addr != defaultMCPAddr || config.Endpoint != defaultMCPEndpoint {
+		t.Fatalf("unexpected default config: %#v", config)
+	}
+
+	config, err = parseJiraMCPServeArgs([]string{
+		"--addr", "127.0.0.1:9999",
+		"--endpoint", "/jira-mcp",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Addr != "127.0.0.1:9999" || config.Endpoint != "/jira-mcp" {
+		t.Fatalf("unexpected config: %#v", config)
 	}
 }
 
@@ -75,19 +97,28 @@ func TestMCPServerListsJiraTools(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"jira_auth_whoami":           jiraAuthWhoAmIDoc.Description,
-		"jira_project_list":          jiraProjectListDoc.Description,
-		"jira_issue_get":             jiraIssueGetDoc.Description,
-		"jira_issue_search":          jiraIssueSearchDoc.Description,
-		"jira_issue_create":          jiraIssueCreateDoc.Description,
-		"jira_issue_delete":          jiraIssueDeleteDoc.Description,
-		"jira_issue_comment_add":     jiraIssueCommentAddDoc.Description,
-		"jira_issue_comment_delete":  jiraIssueCommentDeleteDoc.Description,
-		"jira_issue_assign":          jiraIssueAssignDoc.Description,
-		"jira_issue_transition_list": jiraIssueTransitionListDoc.Description,
-		"jira_issue_transition":      jiraIssueTransitionDoc.Description,
-		"jira_issue_update":          jiraIssueUpdateDoc.Description,
-		"jira_issue_editmeta":        jiraIssueEditMetaDoc.Description,
+		"jira_auth_whoami":             jiraAuthWhoAmIDoc.Description,
+		"jira_project_list":            jiraProjectListDoc.Description,
+		"jira_issue_get":               jiraIssueGetDoc.Description,
+		"jira_issue_search":            jiraIssueSearchDoc.Description,
+		"jira_issue_create":            jiraIssueCreateDoc.Description,
+		"jira_issue_delete":            jiraIssueDeleteDoc.Description,
+		"jira_issue_comment_add":       jiraIssueCommentAddDoc.Description,
+		"jira_issue_comment_delete":    jiraIssueCommentDeleteDoc.Description,
+		"jira_issue_assign":            jiraIssueAssignDoc.Description,
+		"jira_issue_transition_list":   jiraIssueTransitionListDoc.Description,
+		"jira_issue_transition":        jiraIssueTransitionDoc.Description,
+		"jira_issue_update":            jiraIssueUpdateDoc.Description,
+		"jira_issue_editmeta":          jiraIssueEditMetaDoc.Description,
+		"jira_status_get":              jiraStatusGetDoc.Description,
+		"jira_status_search":           jiraStatusSearchDoc.Description,
+		"jira_status_create":           jiraStatusCreateDoc.Description,
+		"jira_status_update":           jiraStatusUpdateDoc.Description,
+		"jira_status_delete":           jiraStatusDeleteDoc.Description,
+		"jira_board_configuration_get": jiraBoardConfigurationGetDoc.Description,
+	}
+	if len(toolsByName) != len(expected) {
+		t.Fatalf("expected exactly %d Jira tools, got %d: %#v", len(expected), len(toolsByName), toolsByName)
 	}
 
 	for name, description := range expected {
@@ -128,7 +159,7 @@ func TestMCPJiraIssueMutationTools(t *testing.T) {
 	}
 
 	jc := NewJiraClient(config)
-	template, err := getJiraTestIssueTemplate(jc, jiraTestTemplateIssueKey)
+	template, err := getJiraTestIssueTemplate(jc, getJiraTestTemplateIssueKey(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,28 +450,28 @@ func TestMCPJiraToolValidation(t *testing.T) {
 			name: "comment add missing body",
 			tool: "jira_issue_comment_add",
 			arguments: map[string]any{
-				"issueKey": "KAN-1",
+				"issueKey": jiraTestValidationIssueKey,
 			},
 		},
 		{
 			name: "comment delete missing comment id",
 			tool: "jira_issue_comment_delete",
 			arguments: map[string]any{
-				"issueKey": "KAN-1",
+				"issueKey": jiraTestValidationIssueKey,
 			},
 		},
 		{
 			name: "assign missing target",
 			tool: "jira_issue_assign",
 			arguments: map[string]any{
-				"issueKey": "KAN-1",
+				"issueKey": jiraTestValidationIssueKey,
 			},
 		},
 		{
 			name: "assign conflicting target",
 			tool: "jira_issue_assign",
 			arguments: map[string]any{
-				"issueKey":   "KAN-1",
+				"issueKey":   jiraTestValidationIssueKey,
 				"me":         true,
 				"unassigned": true,
 			},
@@ -449,14 +480,14 @@ func TestMCPJiraToolValidation(t *testing.T) {
 			name: "transition missing target",
 			tool: "jira_issue_transition",
 			arguments: map[string]any{
-				"issueKey": "KAN-1",
+				"issueKey": jiraTestValidationIssueKey,
 			},
 		},
 		{
 			name: "transition conflicting target",
 			tool: "jira_issue_transition",
 			arguments: map[string]any{
-				"issueKey":       "KAN-1",
+				"issueKey":       jiraTestValidationIssueKey,
 				"transitionName": "Done",
 				"transitionId":   "31",
 			},
@@ -465,14 +496,14 @@ func TestMCPJiraToolValidation(t *testing.T) {
 			name: "update missing fields",
 			tool: "jira_issue_update",
 			arguments: map[string]any{
-				"issueKey": "KAN-1",
+				"issueKey": jiraTestValidationIssueKey,
 			},
 		},
 		{
 			name: "update duplicate field",
 			tool: "jira_issue_update",
 			arguments: map[string]any{
-				"issueKey": "KAN-1",
+				"issueKey": jiraTestValidationIssueKey,
 				"summary":  "a",
 				"fields": map[string]any{
 					"summary": "b",
@@ -483,7 +514,7 @@ func TestMCPJiraToolValidation(t *testing.T) {
 			name: "update blank field value",
 			tool: "jira_issue_update",
 			arguments: map[string]any{
-				"issueKey": "KAN-1",
+				"issueKey": jiraTestValidationIssueKey,
 				"fields": map[string]any{
 					"summary": "",
 				},
@@ -492,6 +523,92 @@ func TestMCPJiraToolValidation(t *testing.T) {
 		{
 			name:      "delete missing issue key",
 			tool:      "jira_issue_delete",
+			arguments: map[string]any{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+				Name:      tc.tool,
+				Arguments: tc.arguments,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !result.IsError {
+				t.Fatal("expected tool validation to return a tool error")
+			}
+		})
+	}
+}
+
+func TestMCPJiraStatusToolValidation(t *testing.T) {
+	session := newLocalJiraMCPTestSession(t)
+	defer session.Close()
+
+	testCases := []struct {
+		name      string
+		tool      string
+		arguments map[string]any
+	}{
+		{
+			name:      "status get missing ids",
+			tool:      "jira_status_get",
+			arguments: map[string]any{},
+		},
+		{
+			name: "status search negative start",
+			tool: "jira_status_search",
+			arguments: map[string]any{
+				"startAt": -1,
+			},
+		},
+		{
+			name: "status create invalid scope",
+			tool: "jira_status_create",
+			arguments: map[string]any{
+				"scopeType": "TEAM",
+				"statuses": []map[string]any{
+					{
+						"name":           "Ready",
+						"statusCategory": "TODO",
+					},
+				},
+			},
+		},
+		{
+			name: "status create project without project id",
+			tool: "jira_status_create",
+			arguments: map[string]any{
+				"scopeType": "PROJECT",
+				"statuses": []map[string]any{
+					{
+						"name":           "Ready",
+						"statusCategory": "TODO",
+					},
+				},
+			},
+		},
+		{
+			name: "status update missing changes",
+			tool: "jira_status_update",
+			arguments: map[string]any{
+				"statuses": []map[string]any{
+					{
+						"id": "10000",
+					},
+				},
+			},
+		},
+		{
+			name:      "status delete missing ids",
+			tool:      "jira_status_delete",
+			arguments: map[string]any{},
+		},
+		{
+			name:      "board configuration missing board id",
+			tool:      "jira_board_configuration_get",
 			arguments: map[string]any{},
 		},
 	}

@@ -117,6 +117,40 @@ type jiraProjectListToolOutput struct {
 	Projects []JiraProject `json:"projects"`
 }
 
+type jiraStatusGetToolInput struct {
+	StatusIDs []string `json:"statusIds" jsonschema:"Jira workflow status IDs to fetch."`
+}
+
+type jiraStatusSearchToolInput struct {
+	ProjectID      string `json:"projectId,omitempty" jsonschema:"Optional Jira project ID to scope the status search."`
+	StartAt        *int   `json:"startAt,omitempty" jsonschema:"Optional zero-based page offset."`
+	MaxResults     *int   `json:"maxResults,omitempty" jsonschema:"Optional maximum number of statuses to return."`
+	SearchString   string `json:"searchString,omitempty" jsonschema:"Optional status name search string."`
+	StatusCategory string `json:"statusCategory,omitempty" jsonschema:"Optional Jira status category: TODO, IN_PROGRESS, or DONE."`
+}
+
+type jiraStatusCreateToolInput struct {
+	ScopeType string             `json:"scopeType" jsonschema:"Jira status scope type. Use GLOBAL or PROJECT."`
+	ProjectID string             `json:"projectId,omitempty" jsonschema:"Jira project ID. Required when scopeType is PROJECT."`
+	Statuses  []JiraStatusCreate `json:"statuses" jsonschema:"Statuses to create. Each status requires name and statusCategory."`
+}
+
+type jiraStatusUpdateToolInput struct {
+	Statuses []JiraStatusUpdate `json:"statuses" jsonschema:"Statuses to update. Each status requires id and at least one changed field."`
+}
+
+type jiraStatusDeleteToolInput struct {
+	StatusIDs []string `json:"statusIds" jsonschema:"Jira workflow status IDs to delete."`
+}
+
+type jiraBoardConfigurationGetToolInput struct {
+	BoardID string `json:"boardId" jsonschema:"Jira Software board ID."`
+}
+
+type jiraStatusListToolOutput struct {
+	Statuses []JiraStatus `json:"statuses"`
+}
+
 func (cli CLI) runMCP(args []string) error {
 	if len(args) == 0 || isHelpToken(args[0]) {
 		cli.printMCPHelp()
@@ -180,7 +214,6 @@ func parseJiraMCPServeArgs(args []string) (jiraMCPConfig, error) {
 	if endpoint := parsedArgs.First("endpoint"); endpoint != "" {
 		config.Endpoint = endpoint
 	}
-
 	if strings.TrimSpace(config.Addr) == "" {
 		return jiraMCPConfig{}, fmt.Errorf("--addr must not be empty")
 	}
@@ -481,7 +514,132 @@ func newJiraMCPServer(jc JiraClient) *mcp.Server {
 		return nil, editMeta, err
 	})
 
+	addJiraStatusMCPTools(server, jc, readOnlyAnnotations, mutatingAnnotations, destructiveAnnotations)
+
 	return server
+}
+
+func addJiraStatusMCPTools(
+	server *mcp.Server,
+	jc JiraClient,
+	readOnlyAnnotations *mcp.ToolAnnotations,
+	mutatingAnnotations *mcp.ToolAnnotations,
+	destructiveAnnotations *mcp.ToolAnnotations,
+) {
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_status_get",
+		Title:       jiraStatusGetDoc.Command,
+		Description: jiraStatusGetDoc.Description,
+		Annotations: readOnlyAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraStatusGetToolInput) (*mcp.CallToolResult, jiraStatusListToolOutput, error) {
+		statusIDs, err := validateJiraMCPStringList(input.StatusIDs, "statusIds")
+		if err != nil {
+			return nil, jiraStatusListToolOutput{}, err
+		}
+
+		statuses, err := jc.GetStatusesContext(ctx, statusIDs)
+		return nil, jiraStatusListToolOutput{
+			Statuses: statuses,
+		}, err
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_status_search",
+		Title:       jiraStatusSearchDoc.Command,
+		Description: jiraStatusSearchDoc.Description,
+		Annotations: readOnlyAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraStatusSearchToolInput) (*mcp.CallToolResult, JiraStatusPage, error) {
+		searchInput, err := buildJiraMCPStatusSearchInput(input)
+		if err != nil {
+			return nil, JiraStatusPage{}, err
+		}
+
+		statusPage, err := jc.SearchStatusesContext(ctx, searchInput)
+		return nil, statusPage, err
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_status_create",
+		Title:       jiraStatusCreateDoc.Command,
+		Description: jiraStatusCreateDoc.Description,
+		Annotations: mutatingAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraStatusCreateToolInput) (*mcp.CallToolResult, jiraStatusListToolOutput, error) {
+		createInput, err := buildJiraMCPStatusCreateInput(input)
+		if err != nil {
+			return nil, jiraStatusListToolOutput{}, err
+		}
+
+		statuses, err := jc.CreateStatusesContext(ctx, createInput)
+		return nil, jiraStatusListToolOutput{
+			Statuses: statuses,
+		}, err
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_status_update",
+		Title:       jiraStatusUpdateDoc.Command,
+		Description: jiraStatusUpdateDoc.Description,
+		Annotations: mutatingAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraStatusUpdateToolInput) (*mcp.CallToolResult, jiraStatusUpdateToolOutput, error) {
+		updateInput, statusIDs, err := buildJiraMCPStatusUpdateInput(input)
+		if err != nil {
+			return nil, jiraStatusUpdateToolOutput{}, err
+		}
+
+		if err := jc.UpdateStatusesContext(ctx, updateInput); err != nil {
+			return nil, jiraStatusUpdateToolOutput{}, err
+		}
+
+		return nil, jiraStatusUpdateToolOutput{
+			StatusIDs: statusIDs,
+			Updated:   true,
+		}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_status_delete",
+		Title:       jiraStatusDeleteDoc.Command,
+		Description: jiraStatusDeleteDoc.Description,
+		Annotations: destructiveAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraStatusDeleteToolInput) (*mcp.CallToolResult, jiraStatusDeleteToolOutput, error) {
+		statusIDs, err := validateJiraMCPStringList(input.StatusIDs, "statusIds")
+		if err != nil {
+			return nil, jiraStatusDeleteToolOutput{}, err
+		}
+
+		if err := jc.DeleteStatusesContext(ctx, statusIDs); err != nil {
+			return nil, jiraStatusDeleteToolOutput{}, err
+		}
+
+		return nil, jiraStatusDeleteToolOutput{
+			StatusIDs: statusIDs,
+			Deleted:   true,
+		}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_board_configuration_get",
+		Title:       jiraBoardConfigurationGetDoc.Command,
+		Description: jiraBoardConfigurationGetDoc.Description,
+		Annotations: readOnlyAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraBoardConfigurationGetToolInput) (*mcp.CallToolResult, JiraBoardConfiguration, error) {
+		if strings.TrimSpace(input.BoardID) == "" {
+			return nil, nil, fmt.Errorf("boardId is required")
+		}
+
+		configuration, err := jc.GetBoardConfigurationContext(ctx, input.BoardID)
+		return nil, configuration, err
+	})
+}
+
+type jiraStatusUpdateToolOutput struct {
+	StatusIDs []string `json:"statusIds"`
+	Updated   bool     `json:"updated"`
+}
+
+type jiraStatusDeleteToolOutput struct {
+	StatusIDs []string `json:"statusIds"`
+	Deleted   bool     `json:"deleted"`
 }
 
 func validateJiraIssueCreateToolInput(input *jiraIssueCreateToolInput) error {
@@ -654,6 +812,158 @@ func buildJiraMCPUpdateInput(input *jiraIssueUpdateToolInput) (UpdateIssueInput,
 	return updateInput, updatedFields, nil
 }
 
+func validateJiraMCPStringList(input []string, fieldName string) ([]string, error) {
+	if len(input) == 0 {
+		return nil, fmt.Errorf("%s requires at least one value", fieldName)
+	}
+
+	values := make([]string, 0, len(input))
+	seenValues := make(map[string]struct{})
+	for _, value := range input {
+		trimmedValue := strings.TrimSpace(value)
+		if trimmedValue == "" {
+			return nil, fmt.Errorf("%s values must not be empty", fieldName)
+		}
+		if _, ok := seenValues[trimmedValue]; ok {
+			return nil, fmt.Errorf("%s value %q was provided more than once", fieldName, trimmedValue)
+		}
+		seenValues[trimmedValue] = struct{}{}
+		values = append(values, trimmedValue)
+	}
+
+	return values, nil
+}
+
+func buildJiraMCPStatusSearchInput(input *jiraStatusSearchToolInput) (JiraStatusSearchInput, error) {
+	if input.StartAt != nil && *input.StartAt < 0 {
+		return JiraStatusSearchInput{}, fmt.Errorf("startAt must be greater than or equal to 0")
+	}
+	if input.MaxResults != nil && *input.MaxResults <= 0 {
+		return JiraStatusSearchInput{}, fmt.Errorf("maxResults must be greater than 0")
+	}
+
+	return JiraStatusSearchInput{
+		ProjectID:      strings.TrimSpace(input.ProjectID),
+		StartAt:        input.StartAt,
+		MaxResults:     input.MaxResults,
+		SearchString:   strings.TrimSpace(input.SearchString),
+		StatusCategory: strings.TrimSpace(input.StatusCategory),
+	}, nil
+}
+
+func buildJiraMCPStatusCreateInput(input *jiraStatusCreateToolInput) (JiraStatusCreateInput, error) {
+	scopeType := strings.TrimSpace(input.ScopeType)
+	if scopeType != "GLOBAL" && scopeType != "PROJECT" {
+		return JiraStatusCreateInput{}, fmt.Errorf("scopeType must be GLOBAL or PROJECT")
+	}
+
+	scope := JiraStatusScope{
+		Type: scopeType,
+	}
+	if scopeType == "PROJECT" {
+		projectID := strings.TrimSpace(input.ProjectID)
+		if projectID == "" {
+			return JiraStatusCreateInput{}, fmt.Errorf("projectId is required when scopeType is PROJECT")
+		}
+		scope.Project = &JiraStatusProject{
+			ID: projectID,
+		}
+	} else if strings.TrimSpace(input.ProjectID) != "" {
+		return JiraStatusCreateInput{}, fmt.Errorf("projectId must be omitted when scopeType is GLOBAL")
+	}
+
+	statuses, err := validateJiraMCPStatusCreateList(input.Statuses)
+	if err != nil {
+		return JiraStatusCreateInput{}, err
+	}
+
+	return JiraStatusCreateInput{
+		Scope:    scope,
+		Statuses: statuses,
+	}, nil
+}
+
+func validateJiraMCPStatusCreateList(input []JiraStatusCreate) ([]JiraStatusCreate, error) {
+	if len(input) == 0 {
+		return nil, fmt.Errorf("statuses requires at least one status")
+	}
+
+	statuses := make([]JiraStatusCreate, 0, len(input))
+	for _, status := range input {
+		name := strings.TrimSpace(status.Name)
+		if name == "" {
+			return nil, fmt.Errorf("status name is required")
+		}
+		statusCategory := strings.TrimSpace(status.StatusCategory)
+		if statusCategory == "" {
+			return nil, fmt.Errorf("statusCategory is required")
+		}
+		statuses = append(statuses, JiraStatusCreate{
+			Name:           name,
+			Description:    strings.TrimSpace(status.Description),
+			StatusCategory: statusCategory,
+		})
+	}
+
+	return statuses, nil
+}
+
+func buildJiraMCPStatusUpdateInput(input *jiraStatusUpdateToolInput) (JiraStatusUpdateInput, []string, error) {
+	if len(input.Statuses) == 0 {
+		return JiraStatusUpdateInput{}, nil, fmt.Errorf("statuses requires at least one status")
+	}
+
+	statuses := make([]JiraStatusUpdate, 0, len(input.Statuses))
+	statusIDs := make([]string, 0, len(input.Statuses))
+	seenIDs := make(map[string]struct{})
+	for _, status := range input.Statuses {
+		statusID := strings.TrimSpace(status.ID)
+		if statusID == "" {
+			return JiraStatusUpdateInput{}, nil, fmt.Errorf("status id is required")
+		}
+		if _, ok := seenIDs[statusID]; ok {
+			return JiraStatusUpdateInput{}, nil, fmt.Errorf("status id %q was provided more than once", statusID)
+		}
+		seenIDs[statusID] = struct{}{}
+
+		if status.Name == nil && status.Description == nil && status.StatusCategory == nil {
+			return JiraStatusUpdateInput{}, nil, fmt.Errorf("status %s requires at least one changed field", statusID)
+		}
+
+		var name *string
+		if status.Name != nil {
+			trimmedName := strings.TrimSpace(*status.Name)
+			if trimmedName == "" {
+				return JiraStatusUpdateInput{}, nil, fmt.Errorf("status %s name must not be empty", statusID)
+			}
+			name = &trimmedName
+		}
+
+		description := status.Description
+
+		var statusCategory *string
+		if status.StatusCategory != nil {
+			trimmedStatusCategory := strings.TrimSpace(*status.StatusCategory)
+			if trimmedStatusCategory == "" {
+				return JiraStatusUpdateInput{}, nil, fmt.Errorf("status %s statusCategory must not be empty", statusID)
+			}
+			statusCategory = &trimmedStatusCategory
+		}
+
+		statuses = append(statuses, JiraStatusUpdate{
+			ID:             statusID,
+			Name:           name,
+			Description:    description,
+			StatusCategory: statusCategory,
+		})
+		statusIDs = append(statusIDs, statusID)
+	}
+
+	return JiraStatusUpdateInput{
+		Statuses: statuses,
+	}, statusIDs, nil
+}
+
 func (cli CLI) printMCPHelp() {
 	fmt.Fprint(cli.stdout, `jira mcp
 
@@ -665,7 +975,7 @@ Usage:
   jira mcp serve --help
 
 Commands:
-  serve    Serve Jira MCP tools over Streamable HTTP
+  serve    Serve Jira MCP tools over Streamable HTTP.
 `)
 }
 
@@ -699,5 +1009,13 @@ Tools:
   jira_issue_transition         %s
   jira_issue_update             %s
   jira_issue_editmeta           %s
-`, defaultMCPAddr, defaultMCPEndpoint, jiraAuthWhoAmIDoc.Summary, jiraProjectListDoc.Summary, jiraIssueCreateDoc.Summary, jiraIssueGetDoc.Summary, jiraIssueSearchDoc.Summary, jiraIssueDeleteDoc.Summary, jiraIssueCommentAddDoc.Summary, jiraIssueCommentDeleteDoc.Summary, jiraIssueAssignDoc.Summary, jiraIssueTransitionListDoc.Summary, jiraIssueTransitionDoc.Summary, jiraIssueUpdateDoc.Summary, jiraIssueEditMetaDoc.Summary)
+
+Status and board tools:
+  jira_status_get                  %s
+  jira_status_search               %s
+  jira_status_create               %s
+  jira_status_update               %s
+  jira_status_delete               %s
+  jira_board_configuration_get     %s
+`, defaultMCPAddr, defaultMCPEndpoint, jiraAuthWhoAmIDoc.Summary, jiraProjectListDoc.Summary, jiraIssueCreateDoc.Summary, jiraIssueGetDoc.Summary, jiraIssueSearchDoc.Summary, jiraIssueDeleteDoc.Summary, jiraIssueCommentAddDoc.Summary, jiraIssueCommentDeleteDoc.Summary, jiraIssueAssignDoc.Summary, jiraIssueTransitionListDoc.Summary, jiraIssueTransitionDoc.Summary, jiraIssueUpdateDoc.Summary, jiraIssueEditMetaDoc.Summary, jiraStatusGetDoc.Summary, jiraStatusSearchDoc.Summary, jiraStatusCreateDoc.Summary, jiraStatusUpdateDoc.Summary, jiraStatusDeleteDoc.Summary, jiraBoardConfigurationGetDoc.Summary)
 }

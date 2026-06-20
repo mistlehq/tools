@@ -145,7 +145,7 @@ func TestIssueUpdateFieldJSON(t *testing.T) {
 }
 
 func TestIssueUpdateRequiresAtLeastOneField(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", jiraTestValidationIssueKey)
 	if err == nil {
 		t.Fatal("expected update without fields to fail")
 	}
@@ -156,7 +156,7 @@ func TestIssueUpdateRequiresAtLeastOneField(t *testing.T) {
 }
 
 func TestIssueUpdateRejectsConflictingDescriptionFlags(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--description", "a", "--description-file", "description.txt")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", jiraTestValidationIssueKey, "--description", "a", "--description-file", "description.txt")
 	if err == nil {
 		t.Fatal("expected conflicting description flags to fail")
 	}
@@ -167,7 +167,7 @@ func TestIssueUpdateRejectsConflictingDescriptionFlags(t *testing.T) {
 }
 
 func TestIssueUpdateRejectsFieldWithoutEquals(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--field", "summary")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", jiraTestValidationIssueKey, "--field", "summary")
 	if err == nil {
 		t.Fatal("expected field without equals to fail")
 	}
@@ -178,7 +178,7 @@ func TestIssueUpdateRejectsFieldWithoutEquals(t *testing.T) {
 }
 
 func TestIssueUpdateRejectsInvalidFieldJSON(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--field-json", "summary={")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", jiraTestValidationIssueKey, "--field-json", "summary={")
 	if err == nil {
 		t.Fatal("expected invalid field JSON to fail")
 	}
@@ -189,7 +189,7 @@ func TestIssueUpdateRejectsInvalidFieldJSON(t *testing.T) {
 }
 
 func TestIssueUpdateRejectsDuplicateFields(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", "KAN-1", "--summary", "a", "--field", "summary=b")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "update", jiraTestValidationIssueKey, "--summary", "a", "--field", "summary=b")
 	if err == nil {
 		t.Fatal("expected duplicate fields to fail")
 	}

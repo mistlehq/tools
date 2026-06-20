@@ -88,7 +88,18 @@ func setupCommandEnvironment(t *testing.T) Environment {
 // The Jira test tenant is currently fixed, so tests derive project and issue
 // type from a stable seed issue and then create isolated per-test issues from
 // that template.
-const jiraTestTemplateIssueKey = "KAN-1"
+const defaultJiraTestTemplateIssueKey = "KAN-948"
+const jiraTestValidationIssueKey = "KAN-948"
+
+func getJiraTestTemplateIssueKey(t *testing.T) string {
+	t.Helper()
+
+	if issueKey := os.Getenv("JIRA_TEST_TEMPLATE_ISSUE_KEY"); issueKey != "" {
+		return issueKey
+	}
+
+	return defaultJiraTestTemplateIssueKey
+}
 
 type jiraTestIssueTemplate struct {
 	Fields struct {
@@ -111,7 +122,7 @@ func setupIsolatedIssue(t *testing.T) (Environment, string) {
 	}
 
 	jc := NewJiraClient(config)
-	template, err := getJiraTestIssueTemplate(jc, jiraTestTemplateIssueKey)
+	template, err := getJiraTestIssueTemplate(jc, getJiraTestTemplateIssueKey(t))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestIssueGet(t *testing.T) {
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "get", "KAN-1")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "get", getJiraTestTemplateIssueKey(t))
 	stdout := commandResult.stdout
 
 	if stdout.Len() == 0 {
@@ -41,7 +41,7 @@ func TestIssueGet(t *testing.T) {
 }
 
 func TestIssueSearch(t *testing.T) {
-	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "search", "issuekey = KAN-1")
+	commandResult := setupAndRunCommandWithInput(t, "", "jira", "issue", "search", "issuekey = "+getJiraTestTemplateIssueKey(t))
 	stdout := commandResult.stdout
 
 	if stdout.Len() == 0 {
@@ -92,7 +92,7 @@ func TestIssueDelete(t *testing.T) {
 	}
 
 	jc := NewJiraClient(config)
-	template, err := getJiraTestIssueTemplate(jc, jiraTestTemplateIssueKey)
+	template, err := getJiraTestIssueTemplate(jc, getJiraTestTemplateIssueKey(t))
 	if err != nil {
 		t.Fatal(err)
 	}

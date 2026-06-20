@@ -20,6 +20,7 @@ The CLI covers common Jira workflows needed by Mistle users and provider integra
 - summary, description, and editable field updates
 - edit metadata inspection
 - local MCP serving for supported Jira tools
+- MCP access to Jira configuration APIs
 
 ## Usage
 
@@ -121,7 +122,7 @@ jira mcp serve --endpoint /mcp
 jira mcp serve --addr 127.0.0.1:8080 --endpoint /mcp
 ```
 
-The MCP tools mirror the provider-backed CLI command surface with structured inputs and outputs:
+The MCP tools mirror the provider-backed CLI command surface and supported Jira configuration APIs with structured inputs and outputs:
 
 | Tool | Purpose | Backing command/API | Annotation |
 | --- | --- | --- | --- |
@@ -138,6 +139,19 @@ The MCP tools mirror the provider-backed CLI command surface with structured inp
 | `jira_issue_transition` | Transition a Jira issue to a new workflow state. | `jira issue transition <key> ...` / `POST /rest/api/3/issue/{issueIdOrKey}/transitions` | Mutating, non-destructive |
 | `jira_issue_update` | Update editable Jira issue fields. | `jira issue update <key> ...` / `PUT /rest/api/3/issue/{issueIdOrKey}` | Mutating, non-destructive |
 | `jira_issue_editmeta` | Show edit metadata for a Jira issue. | `jira issue editmeta <key>` / `GET /rest/api/3/issue/{issueIdOrKey}/editmeta` | Read-only |
+
+The status and board configuration tools expose Jira configuration APIs and require Jira admin permissions such as `manage:jira-configuration` and the corresponding scoped API token or OAuth scopes.
+
+| Tool | Purpose | Backing API | Annotation |
+| --- | --- | --- | --- |
+| `jira_status_get` | Get workflow statuses by ID. | `GET /rest/api/3/statuses` | Read-only |
+| `jira_status_search` | Search workflow statuses. | `GET /rest/api/3/statuses/search` | Read-only |
+| `jira_status_create` | Create workflow statuses. | `POST /rest/api/3/statuses` | Mutating, non-destructive |
+| `jira_status_update` | Update workflow statuses. | `PUT /rest/api/3/statuses` | Mutating, non-destructive |
+| `jira_status_delete` | Delete workflow statuses. | `DELETE /rest/api/3/statuses` | Destructive |
+| `jira_board_configuration_get` | Read Jira Software board configuration and status-column mappings. | `GET /rest/agile/1.0/board/{boardId}/configuration` | Read-only |
+
+Jira Cloud does not currently expose a public board-column mutation endpoint in the documented Agile API. The MCP therefore reads board column configuration but does not create, rename, delete, or remap board columns.
 
 ## Auth Scopes
 
@@ -194,6 +208,17 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | `jira issue update <key> --field <field-id=value>` | Update an editable field with a string value. | `PUT /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `write:issue:jira` | Use `editmeta` first to inspect editable field IDs. |
 | `jira issue update <key> --field-json <field-id=json>` | Update an editable field with a JSON value. | `PUT /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `write:issue:jira` | Use for arrays, objects, numbers, booleans, and `null`. |
 | `jira issue editmeta <key>` | Show editable field metadata for the issue. | `GET /rest/api/3/issue/{issueIdOrKey}/editmeta` | `read:jira-work` | `read:issue-meta:jira`, `read:field-configuration:jira` | Useful before generic field editing. |
+
+### Jira MCP Tools
+
+| MCP tool | Purpose | Endpoint(s) | OAuth 2.0 classic | Granular / scoped API token scopes | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `jira_status_get` | Get workflow statuses by ID. | `GET /rest/api/3/statuses` | `manage:jira-configuration` | `read:workflow:jira` | Requires Jira admin configuration access. |
+| `jira_status_search` | Search workflow statuses. | `GET /rest/api/3/statuses/search` | `manage:jira-configuration` | `read:workflow:jira` | Requires Jira admin configuration access. |
+| `jira_status_create` | Create workflow statuses. | `POST /rest/api/3/statuses` | `manage:jira-configuration` | `write:workflow:jira` | Requires Jira admin configuration access. |
+| `jira_status_update` | Update workflow statuses. | `PUT /rest/api/3/statuses` | `manage:jira-configuration` | `write:workflow:jira` | Requires Jira admin configuration access. |
+| `jira_status_delete` | Delete workflow statuses. | `DELETE /rest/api/3/statuses` | `manage:jira-configuration` | `write:workflow:jira` | Requires Jira admin configuration access. |
+| `jira_board_configuration_get` | Read board configuration. | `GET /rest/agile/1.0/board/{boardId}/configuration` | `read:jira-work` | `read:board-scope.admin:jira-software`, `read:project:jira` | Read-only; documented Jira Cloud API does not provide a board-column mutation counterpart. |
 
 ### Configuration
 

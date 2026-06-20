@@ -74,7 +74,7 @@ func TestIssueCommentAddWithStdin(t *testing.T) {
 }
 
 func TestIssueCommentAddRequiresSingleBodySource(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "add", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "add", jiraTestValidationIssueKey)
 	if err == nil {
 		t.Fatal("expected missing body source to fail")
 	}
@@ -85,7 +85,7 @@ func TestIssueCommentAddRequiresSingleBodySource(t *testing.T) {
 }
 
 func TestIssueCommentAddRejectsConflictingBodyFlags(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "add", "KAN-1", "--body", "a", "--body-file", "comment.txt")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "add", jiraTestValidationIssueKey, "--body", "a", "--body-file", "comment.txt")
 	if err == nil {
 		t.Fatal("expected conflicting body flags to fail")
 	}
@@ -139,7 +139,7 @@ func TestIssueCommentDelete(t *testing.T) {
 }
 
 func TestIssueCommentDeleteRequiresIssueKeyAndCommentID(t *testing.T) {
-	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "delete", "KAN-1")
+	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "delete", jiraTestValidationIssueKey)
 	if err == nil {
 		t.Fatal("expected missing comment id to fail")
 	}

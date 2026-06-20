@@ -83,3 +83,39 @@ var jiraIssueEditMetaDoc = commandDoc{
 	Summary:     "Show edit metadata for a Jira issue",
 	Description: "Show edit metadata for a Jira issue.",
 }
+
+var jiraStatusGetDoc = commandDoc{
+	Command:     "jira status get",
+	Summary:     "Get Jira workflow statuses by ID",
+	Description: "Get Jira workflow statuses by ID.",
+}
+
+var jiraStatusSearchDoc = commandDoc{
+	Command:     "jira status search",
+	Summary:     "Search Jira workflow statuses",
+	Description: "Search Jira workflow statuses by name, project, and status category.",
+}
+
+var jiraStatusCreateDoc = commandDoc{
+	Command:     "jira status create",
+	Summary:     "Create Jira workflow statuses",
+	Description: "Create Jira workflow statuses in a global or project scope.",
+}
+
+var jiraStatusUpdateDoc = commandDoc{
+	Command:     "jira status update",
+	Summary:     "Update Jira workflow statuses",
+	Description: "Update Jira workflow statuses by ID.",
+}
+
+var jiraStatusDeleteDoc = commandDoc{
+	Command:     "jira status delete",
+	Summary:     "Delete Jira workflow statuses",
+	Description: "Delete Jira workflow statuses by ID.",
+}
+
+var jiraBoardConfigurationGetDoc = commandDoc{
+	Command:     "jira board configuration get",
+	Summary:     "Get Jira board configuration",
+	Description: "Get Jira board configuration, including read-only column/status mappings.",
+}
