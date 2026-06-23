@@ -14,6 +14,7 @@ type AuthMode string
 const (
 	AuthModeBasic  AuthMode = "basic"
 	AuthModeBearer AuthMode = "bearer"
+	AuthModeHeader AuthMode = "header"
 )
 
 type Config struct {
@@ -22,6 +23,8 @@ type Config struct {
 	Username        string
 	Password        string
 	Token           string
+	HeaderName      string
+	HeaderValue     string
 }
 
 type Server struct {
@@ -53,6 +56,13 @@ func Start(config Config) (*Server, error) {
 		if config.Token == "" {
 			return nil, fmt.Errorf("bearer auth requires token")
 		}
+	case AuthModeHeader:
+		if config.HeaderName == "" {
+			return nil, fmt.Errorf("header auth requires header name")
+		}
+		if config.HeaderValue == "" {
+			return nil, fmt.Errorf("header auth requires header value")
+		}
 	default:
 		return nil, fmt.Errorf("unsupported auth mode: %s", config.AuthMode)
 	}
@@ -68,6 +78,8 @@ func Start(config Config) (*Server, error) {
 				r.Out.Header.Set("Authorization", basicAuthorizationHeader(config.Username, config.Password))
 			case AuthModeBearer:
 				r.Out.Header.Set("Authorization", "Bearer "+config.Token)
+			case AuthModeHeader:
+				r.Out.Header.Set(config.HeaderName, config.HeaderValue)
 			}
 		},
 	}
