@@ -35,6 +35,8 @@ All CLIs in this repository follow the same basic shape:
   Google Analytics CLI.
 - [`shopify`](./cmd/shopify/README.md)
   Shopify Admin API CLI.
+- [`metaads`](./cmd/metaads/README.md)
+  Meta Graph API / Marketing API CLI.
 
 ## Install
 
