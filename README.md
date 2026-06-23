@@ -33,6 +33,8 @@ All CLIs in this repository follow the same basic shape:
   Slack CLI.
 - [`ga`](./cmd/ga/README.md)
   Google Analytics CLI.
+- [`googleads`](./cmd/googleads/README.md)
+  Google Ads API CLI.
 - [`shopify`](./cmd/shopify/README.md)
   Shopify Admin API CLI.
 - [`metaads`](./cmd/metaads/README.md)

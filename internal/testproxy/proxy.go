@@ -25,6 +25,7 @@ type Config struct {
 	Token           string
 	HeaderName      string
 	HeaderValue     string
+	Headers         map[string]string
 }
 
 type Server struct {
@@ -80,6 +81,9 @@ func Start(config Config) (*Server, error) {
 				r.Out.Header.Set("Authorization", "Bearer "+config.Token)
 			case AuthModeHeader:
 				r.Out.Header.Set(config.HeaderName, config.HeaderValue)
+			}
+			for name, value := range config.Headers {
+				r.Out.Header.Set(name, value)
 			}
 		},
 	}
