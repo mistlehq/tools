@@ -1,0 +1,32 @@
+package main
+
+import "testing"
+
+func TestRequestValidation(t *testing.T) {
+	client := NewGoogleAdsClient(Config{BaseURL: "https://googleads.googleapis.com/v24"})
+	if _, err := client.Request(GoogleAdsRequest{Method: "TRACE", Path: "/customers:listAccessibleCustomers"}); err == nil {
+		t.Fatal("expected unsupported method to fail")
+	}
+	if _, err := client.Request(GoogleAdsRequest{Method: "GET"}); err == nil {
+		t.Fatal("expected missing path to fail")
+	}
+	if _, err := client.Request(GoogleAdsRequest{Method: "GET", Path: "customers:listAccessibleCustomers"}); err == nil {
+		t.Fatal("expected relative path to fail")
+	}
+}
+
+func TestGAQLValidation(t *testing.T) {
+	if _, err := gaqlRequestBody(GoogleAdsGAQLInput{Query: "SELECT customer.id FROM customer"}, true); err == nil {
+		t.Fatal("expected missing customer id to fail")
+	}
+	if _, err := gaqlRequestBody(GoogleAdsGAQLInput{CustomerID: "123"}, true); err == nil {
+		t.Fatal("expected missing query to fail")
+	}
+	body, err := gaqlRequestBody(GoogleAdsGAQLInput{CustomerID: "123", Query: "SELECT customer.id FROM customer", PageSize: "10"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body["query"] != "SELECT customer.id FROM customer" || body["pageSize"] != "10" {
+		t.Fatalf("unexpected GAQL body: %#v", body)
+	}
+}
