@@ -31,6 +31,8 @@ All CLIs in this repository follow the same basic shape:
   Jira CLI for Jira Cloud.
 - [`slack`](./cmd/slack/README.md)
   Slack CLI.
+- [`ga`](./cmd/ga/README.md)
+  Google Analytics CLI.
 
 ## Install
 
