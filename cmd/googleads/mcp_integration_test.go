@@ -67,8 +67,9 @@ func TestMCPGoogleAdsReadTools(t *testing.T) {
 	}
 
 	searchResult := callGoogleAdsMCPTool(t, session, "googleads_gaql_search", map[string]any{
-		"customer_id": customerID,
-		"query":       "SELECT customer.id FROM customer LIMIT 1",
+		"customer_id":       customerID,
+		"login_customer_id": optionalLoginCustomerID(),
+		"query":             "SELECT customer.id FROM customer LIMIT 1",
 	})
 	var search map[string]any
 	decodeMCPStructuredContent(t, searchResult, &search)

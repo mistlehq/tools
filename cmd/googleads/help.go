@@ -61,12 +61,13 @@ Usage:
   googleads request --method POST --path /customers/<customer-id>/campaigns:mutate --body <json>
 
 Options:
-  --method <method>       HTTP method: GET, POST, PATCH, or DELETE. Defaults to GET.
-  --path <path>           Google Ads API path under the configured version base, starting with '/'.
-  --params <json>         Query parameters JSON object.
-  --params-file <path>    File containing query parameters JSON object.
-  --body <json>           JSON request body.
-  --body-file <path>      File containing JSON request body.
+  --method <method>                    HTTP method: GET, POST, PATCH, or DELETE. Defaults to GET.
+  --path <path>                        Google Ads API path under the configured version base, starting with '/'.
+  --login-customer-id <customer-id>    Optional manager customer ID for the login-customer-id header.
+  --params <json>                      Query parameters JSON object.
+  --params-file <path>                 File containing query parameters JSON object.
+  --body <json>                        JSON request body.
+  --body-file <path>                   File containing JSON request body.
 `, googleAdsRequestDoc.Description)
 }
 
@@ -112,6 +113,7 @@ Usage:
   googleads gaql search --customer-id <customer-id> --query 'SELECT customer.id FROM customer LIMIT 1'
   googleads gaql search --customer-id <customer-id> --query-file <path>
   googleads gaql search --customer-id <customer-id> --query <gaql> --page-size <n> --page-token <token>
+  googleads gaql search --customer-id <customer-id> --login-customer-id <manager-customer-id> --query <gaql>
 `, googleAdsGAQLSearchDoc.Description)
 }
 
@@ -123,6 +125,7 @@ func (cli CLI) printGAQLSearchStreamHelp() {
 Usage:
   googleads gaql search-stream --customer-id <customer-id> --query 'SELECT customer.id FROM customer LIMIT 1'
   googleads gaql search-stream --customer-id <customer-id> --query-file <path>
+  googleads gaql search-stream --customer-id <customer-id> --login-customer-id <manager-customer-id> --query <gaql>
 `, googleAdsGAQLSearchStreamDoc.Description)
 }
 

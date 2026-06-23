@@ -32,8 +32,10 @@ func TestNamedReadCommands(t *testing.T) {
 	env := setupCommandEnvironment(t)
 	customerID := testCustomerID(t)
 	query := "SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1"
+	searchArgs := append([]string{"googleads", "gaql", "search", "--customer-id", customerID}, optionalLoginCustomerArgs()...)
+	searchArgs = append(searchArgs, "--query", query, "--page-size", "10")
 
-	searchResult, err := runCommandWithInput(t, env, "", "googleads", "gaql", "search", "--customer-id", customerID, "--query", query, "--page-size", "10")
+	searchResult, err := runCommandWithInput(t, env, "", searchArgs...)
 	if err != nil {
 		t.Fatal(err)
 	}

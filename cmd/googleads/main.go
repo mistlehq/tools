@@ -235,12 +235,13 @@ func (cli CLI) runFields(args []string) error {
 
 func parseRequestArgs(stdin io.Reader, args []string) (GoogleAdsRequest, error) {
 	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
-		"method":      {TakesValue: true},
-		"path":        {TakesValue: true},
-		"params":      {TakesValue: true},
-		"params-file": {TakesValue: true},
-		"body":        {TakesValue: true},
-		"body-file":   {TakesValue: true},
+		"method":            {TakesValue: true},
+		"path":              {TakesValue: true},
+		"login-customer-id": {TakesValue: true},
+		"params":            {TakesValue: true},
+		"params-file":       {TakesValue: true},
+		"body":              {TakesValue: true},
+		"body-file":         {TakesValue: true},
 	})
 	if err != nil {
 		return GoogleAdsRequest{}, err
@@ -256,19 +257,20 @@ func parseRequestArgs(stdin io.Reader, args []string) (GoogleAdsRequest, error) 
 	if err != nil {
 		return GoogleAdsRequest{}, err
 	}
-	return GoogleAdsRequest{Method: parsedArgs.First("method"), Path: parsedArgs.First("path"), Params: params, Body: body}, nil
+	return GoogleAdsRequest{Method: parsedArgs.First("method"), Path: parsedArgs.First("path"), LoginCustomerID: parsedArgs.First("login-customer-id"), Params: params, Body: body}, nil
 }
 
 func parseGAQLArgs(stdin io.Reader, args []string, command string) (GoogleAdsGAQLInput, error) {
 	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
-		"customer-id": {TakesValue: true},
-		"query":       {TakesValue: true},
-		"query-file":  {TakesValue: true},
-		"page-size":   {TakesValue: true},
-		"page-token":  {TakesValue: true},
-		"summary-row": {TakesValue: true},
-		"params":      {TakesValue: true},
-		"params-file": {TakesValue: true},
+		"customer-id":       {TakesValue: true},
+		"login-customer-id": {TakesValue: true},
+		"query":             {TakesValue: true},
+		"query-file":        {TakesValue: true},
+		"page-size":         {TakesValue: true},
+		"page-token":        {TakesValue: true},
+		"summary-row":       {TakesValue: true},
+		"params":            {TakesValue: true},
+		"params-file":       {TakesValue: true},
 	})
 	if err != nil {
 		return GoogleAdsGAQLInput{}, err
@@ -284,7 +286,7 @@ func parseGAQLArgs(stdin io.Reader, args []string, command string) (GoogleAdsGAQ
 	if err != nil {
 		return GoogleAdsGAQLInput{}, err
 	}
-	return GoogleAdsGAQLInput{CustomerID: parsedArgs.First("customer-id"), Query: string(query), PageSize: parsedArgs.First("page-size"), PageToken: parsedArgs.First("page-token"), SummaryRow: parsedArgs.First("summary-row"), Params: params}, nil
+	return GoogleAdsGAQLInput{CustomerID: parsedArgs.First("customer-id"), LoginCustomerID: parsedArgs.First("login-customer-id"), Query: string(query), PageSize: parsedArgs.First("page-size"), PageToken: parsedArgs.First("page-token"), SummaryRow: parsedArgs.First("summary-row"), Params: params}, nil
 }
 
 func parseQueryOnlyArgs(stdin io.Reader, args []string, command string) (string, error) {
