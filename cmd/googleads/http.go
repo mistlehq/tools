@@ -17,19 +17,21 @@ type GoogleAdsClient struct {
 }
 
 type GoogleAdsRequest struct {
-	Method string         `json:"method"`
-	Path   string         `json:"path"`
-	Params map[string]any `json:"params,omitempty"`
-	Body   map[string]any `json:"body,omitempty"`
+	Method          string         `json:"method"`
+	Path            string         `json:"path"`
+	LoginCustomerID string         `json:"loginCustomerId,omitempty"`
+	Params          map[string]any `json:"params,omitempty"`
+	Body            map[string]any `json:"body,omitempty"`
 }
 
 type GoogleAdsGAQLInput struct {
-	CustomerID string
-	Query      string
-	PageSize   string
-	PageToken  string
-	SummaryRow string
-	Params     map[string]any
+	CustomerID      string
+	LoginCustomerID string
+	Query           string
+	PageSize        string
+	PageToken       string
+	SummaryRow      string
+	Params          map[string]any
 }
 
 func NewGoogleAdsClient(config Config) GoogleAdsClient {
@@ -81,6 +83,9 @@ func (gc GoogleAdsClient) RequestContext(ctx context.Context, request GoogleAdsR
 	if request.Body != nil {
 		httpRequest.Header.Set("Content-Type", "application/json")
 	}
+	if strings.TrimSpace(request.LoginCustomerID) != "" {
+		httpRequest.Header.Set("login-customer-id", request.LoginCustomerID)
+	}
 
 	response, err := gc.client.Do(httpRequest)
 	if err != nil {
@@ -127,7 +132,7 @@ func (gc GoogleAdsClient) Search(ctx context.Context, input GoogleAdsGAQLInput) 
 	if err != nil {
 		return nil, err
 	}
-	return gc.postJSON(ctx, "/customers/"+input.CustomerID+"/googleAds:search", body)
+	return gc.postJSON(ctx, GoogleAdsRequest{Method: http.MethodPost, Path: "/customers/" + input.CustomerID + "/googleAds:search", LoginCustomerID: input.LoginCustomerID, Body: body})
 }
 
 func (gc GoogleAdsClient) SearchStream(ctx context.Context, input GoogleAdsGAQLInput) ([]any, error) {
@@ -135,7 +140,7 @@ func (gc GoogleAdsClient) SearchStream(ctx context.Context, input GoogleAdsGAQLI
 	if err != nil {
 		return nil, err
 	}
-	responseBody, err := gc.RequestContext(ctx, GoogleAdsRequest{Method: http.MethodPost, Path: "/customers/" + input.CustomerID + "/googleAds:searchStream", Body: body})
+	responseBody, err := gc.RequestContext(ctx, GoogleAdsRequest{Method: http.MethodPost, Path: "/customers/" + input.CustomerID + "/googleAds:searchStream", LoginCustomerID: input.LoginCustomerID, Body: body})
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +155,7 @@ func (gc GoogleAdsClient) SearchFields(ctx context.Context, query string) (map[s
 	if strings.TrimSpace(query) == "" {
 		return nil, fmt.Errorf("query is required")
 	}
-	return gc.postJSON(ctx, "/googleAdsFields:search", map[string]any{"query": query})
+	return gc.postJSON(ctx, GoogleAdsRequest{Method: http.MethodPost, Path: "/googleAdsFields:search", Body: map[string]any{"query": query}})
 }
 
 func (gc GoogleAdsClient) GetField(ctx context.Context, resourceName string) (map[string]any, error) {
@@ -195,8 +200,8 @@ func (gc GoogleAdsClient) getJSON(ctx context.Context, request GoogleAdsRequest)
 	return out, nil
 }
 
-func (gc GoogleAdsClient) postJSON(ctx context.Context, path string, body map[string]any) (map[string]any, error) {
-	responseBody, err := gc.RequestContext(ctx, GoogleAdsRequest{Method: http.MethodPost, Path: path, Body: body})
+func (gc GoogleAdsClient) postJSON(ctx context.Context, request GoogleAdsRequest) (map[string]any, error) {
+	responseBody, err := gc.RequestContext(ctx, request)
 	if err != nil {
 		return nil, err
 	}

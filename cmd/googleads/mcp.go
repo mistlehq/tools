@@ -24,19 +24,21 @@ type googleAdsMCPConfig struct {
 type googleAdsEmptyToolInput struct{}
 
 type googleAdsRequestToolInput struct {
-	Method string         `json:"method,omitempty" jsonschema:"HTTP method: GET, POST, PATCH, or DELETE. Defaults to GET."`
-	Path   string         `json:"path" jsonschema:"Google Ads API path under the configured version base, starting with '/'."`
-	Params map[string]any `json:"params,omitempty" jsonschema:"Optional query parameters object."`
-	Body   map[string]any `json:"body,omitempty" jsonschema:"Optional JSON request body."`
+	Method          string         `json:"method,omitempty" jsonschema:"HTTP method: GET, POST, PATCH, or DELETE. Defaults to GET."`
+	Path            string         `json:"path" jsonschema:"Google Ads API path under the configured version base, starting with '/'."`
+	LoginCustomerID string         `json:"login_customer_id,omitempty" jsonschema:"Optional manager customer ID for the login-customer-id header, without dashes."`
+	Params          map[string]any `json:"params,omitempty" jsonschema:"Optional query parameters object."`
+	Body            map[string]any `json:"body,omitempty" jsonschema:"Optional JSON request body."`
 }
 
 type googleAdsGAQLToolInput struct {
-	CustomerID string         `json:"customer_id" jsonschema:"Google Ads customer ID without dashes."`
-	Query      string         `json:"query" jsonschema:"Google Ads Query Language query."`
-	PageSize   string         `json:"page_size,omitempty" jsonschema:"Optional pageSize value for search."`
-	PageToken  string         `json:"page_token,omitempty" jsonschema:"Optional pageToken value for search."`
-	SummaryRow string         `json:"summary_row,omitempty" jsonschema:"Optional summaryRowSetting value."`
-	Params     map[string]any `json:"params,omitempty" jsonschema:"Additional documented request body fields."`
+	CustomerID      string         `json:"customer_id" jsonschema:"Google Ads customer ID without dashes."`
+	LoginCustomerID string         `json:"login_customer_id,omitempty" jsonschema:"Optional manager customer ID for the login-customer-id header, without dashes."`
+	Query           string         `json:"query" jsonschema:"Google Ads Query Language query."`
+	PageSize        string         `json:"page_size,omitempty" jsonschema:"Optional pageSize value for search."`
+	PageToken       string         `json:"page_token,omitempty" jsonschema:"Optional pageToken value for search."`
+	SummaryRow      string         `json:"summary_row,omitempty" jsonschema:"Optional summaryRowSetting value."`
+	Params          map[string]any `json:"params,omitempty" jsonschema:"Additional documented request body fields."`
 }
 
 type googleAdsFieldsSearchToolInput struct {
@@ -129,7 +131,7 @@ func newGoogleAdsMCPServer(gc GoogleAdsClient) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "googleads", Version: Version}, nil)
 
 	mcp.AddTool(server, googleAdsTool("googleads_request", googleAdsRequestDoc, rawAnnotations), func(ctx context.Context, _ *mcp.CallToolRequest, input *googleAdsRequestToolInput) (*mcp.CallToolResult, googleAdsRawResponse, error) {
-		body, err := gc.RequestContext(ctx, GoogleAdsRequest{Method: input.Method, Path: input.Path, Params: input.Params, Body: input.Body})
+		body, err := gc.RequestContext(ctx, GoogleAdsRequest{Method: input.Method, Path: input.Path, LoginCustomerID: input.LoginCustomerID, Params: input.Params, Body: input.Body})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -172,7 +174,7 @@ func googleAdsTool(name string, doc commandDoc, annotations *mcp.ToolAnnotations
 }
 
 func gaqlInputFromTool(input googleAdsGAQLToolInput) GoogleAdsGAQLInput {
-	return GoogleAdsGAQLInput{CustomerID: input.CustomerID, Query: input.Query, PageSize: input.PageSize, PageToken: input.PageToken, SummaryRow: input.SummaryRow, Params: input.Params}
+	return GoogleAdsGAQLInput{CustomerID: input.CustomerID, LoginCustomerID: input.LoginCustomerID, Query: input.Query, PageSize: input.PageSize, PageToken: input.PageToken, SummaryRow: input.SummaryRow, Params: input.Params}
 }
 
 func (cli CLI) printMCPHelp() {

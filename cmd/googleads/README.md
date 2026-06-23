@@ -14,7 +14,8 @@ The caller or proxy must inject:
 
 - `Authorization: Bearer <oauth-access-token>`
 - `developer-token: <google-ads-developer-token>`
-- `login-customer-id: <manager-customer-id>` when required by the Google Ads account hierarchy
+
+Pass `--login-customer-id <manager-customer-id>` or MCP `login_customer_id` on individual requests when required by the Google Ads account hierarchy.
 
 ## Commands
 
@@ -22,10 +23,11 @@ The caller or proxy must inject:
 googleads auth test
 googleads customers list-accessible
 googleads gaql search --customer-id 1234567890 --query 'SELECT customer.id FROM customer LIMIT 1'
+googleads gaql search --customer-id 1234567890 --login-customer-id 0987654321 --query 'SELECT customer_client.client_customer FROM customer_client'
 googleads gaql search-stream --customer-id 1234567890 --query 'SELECT customer.id FROM customer LIMIT 1'
 googleads fields search --query 'SELECT name, category, data_type WHERE name = "campaign.id"'
 googleads fields get --resource-name googleAdsFields/campaign.id
-googleads request --method POST --path /customers/1234567890/googleAds:search --body '{"query":"SELECT customer.id FROM customer LIMIT 1"}'
+googleads request --method POST --path /customers/1234567890/googleAds:search --login-customer-id 0987654321 --body '{"query":"SELECT customer.id FROM customer LIMIT 1"}'
 googleads mcp serve
 ```
 

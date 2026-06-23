@@ -56,9 +56,6 @@ func setupCommandEnvironment(t *testing.T) Environment {
 	accessToken := getRequiredEnv(t, "GOOGLEADS_TEST_ACCESS_TOKEN")
 	developerToken := getRequiredEnv(t, "GOOGLEADS_TEST_DEVELOPER_TOKEN")
 	headers := map[string]string{"developer-token": developerToken}
-	if loginCustomerID := os.Getenv("GOOGLEADS_TEST_LOGIN_CUSTOMER_ID"); loginCustomerID != "" {
-		headers["login-customer-id"] = loginCustomerID
-	}
 	proxy, err := testproxy.Start(testproxy.Config{
 		UpstreamBaseURL: "https://googleads.googleapis.com/" + apiVersion,
 		AuthMode:        testproxy.AuthModeBearer,
@@ -89,6 +86,17 @@ func setupGoogleAdsClient(t *testing.T) (Environment, GoogleAdsClient) {
 func testCustomerID(t *testing.T) string {
 	t.Helper()
 	return getRequiredEnv(t, "GOOGLEADS_TEST_CUSTOMER_ID")
+}
+
+func optionalLoginCustomerArgs() []string {
+	if loginCustomerID := os.Getenv("GOOGLEADS_TEST_LOGIN_CUSTOMER_ID"); loginCustomerID != "" {
+		return []string{"--login-customer-id", loginCustomerID}
+	}
+	return nil
+}
+
+func optionalLoginCustomerID() string {
+	return os.Getenv("GOOGLEADS_TEST_LOGIN_CUSTOMER_ID")
 }
 
 func decodeCommandJSON(t *testing.T, result commandResult, out any) {
