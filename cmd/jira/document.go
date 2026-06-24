@@ -12,9 +12,16 @@ type JiraDocument struct {
 }
 
 type JiraDocNode struct {
-	Type    string        `json:"type"`
-	Text    string        `json:"text,omitempty"`
-	Content []JiraDocNode `json:"content,omitempty"`
+	Type    string         `json:"type"`
+	Text    string         `json:"text,omitempty"`
+	Attrs   map[string]any `json:"attrs,omitempty"`
+	Marks   []JiraDocMark  `json:"marks,omitempty"`
+	Content []JiraDocNode  `json:"content,omitempty"`
+}
+
+type JiraDocMark struct {
+	Type  string         `json:"type"`
+	Attrs map[string]any `json:"attrs,omitempty"`
 }
 
 // NewJiraTextDocument converts plain text into the minimal Atlassian document
@@ -48,4 +55,44 @@ func NewJiraTextDocument(text string) (JiraDocument, error) {
 		Version: 1,
 		Content: content,
 	}, nil
+}
+
+func (document JiraDocument) PlainText() string {
+	var parts []string
+	for _, node := range document.Content {
+		collectJiraDocText(node, &parts)
+	}
+
+	return strings.TrimSpace(strings.Join(parts, "\n"))
+}
+
+func collectJiraDocText(node JiraDocNode, parts *[]string) {
+	if node.Text != "" {
+		*parts = append(*parts, node.Text)
+	}
+
+	if href, ok := node.Attrs["href"].(string); ok && href != "" {
+		*parts = append(*parts, href)
+	}
+	for _, mark := range node.Marks {
+		if href, ok := mark.Attrs["href"].(string); ok && href != "" {
+			*parts = append(*parts, href)
+		}
+	}
+
+	var childParts []string
+	for _, child := range node.Content {
+		collectJiraDocText(child, &childParts)
+	}
+
+	if len(childParts) == 0 {
+		return
+	}
+
+	switch node.Type {
+	case "paragraph", "heading", "blockquote", "listItem":
+		*parts = append(*parts, strings.Join(childParts, " "))
+	default:
+		*parts = append(*parts, childParts...)
+	}
 }

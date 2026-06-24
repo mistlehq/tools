@@ -273,9 +273,10 @@ type JiraIssue struct {
 }
 
 type JiraIssueFields struct {
-	Summary  string          `json:"summary"`
-	Status   JiraIssueStatus `json:"status"`
-	Assignee *JiraUser       `json:"assignee"`
+	Summary     string           `json:"summary"`
+	Status      JiraIssueStatus  `json:"status"`
+	Assignee    *JiraUser        `json:"assignee"`
+	Attachments []JiraAttachment `json:"attachment,omitempty"`
 }
 
 type JiraIssueStatus struct {
@@ -289,9 +290,56 @@ type JiraTransition struct {
 }
 
 type JiraComment struct {
-	ID      string   `json:"id"`
-	Author  JiraUser `json:"author"`
-	Created string   `json:"created"`
+	ID             string                     `json:"id"`
+	Author         JiraUser                   `json:"author"`
+	Created        string                     `json:"created"`
+	Body           JiraDocument               `json:"body,omitempty"`
+	BodyText       string                     `json:"bodyText,omitempty"`
+	AttachmentRefs []JiraCommentAttachmentRef `json:"attachmentRefs,omitempty"`
+}
+
+type JiraCommentAttachmentRef struct {
+	Type     string `json:"type"`
+	ID       string `json:"id,omitempty"`
+	URL      string `json:"url,omitempty"`
+	Filename string `json:"filename,omitempty"`
+}
+
+type JiraCommentList struct {
+	StartAt    int           `json:"startAt"`
+	MaxResults int           `json:"maxResults"`
+	Total      int           `json:"total"`
+	Comments   []JiraComment `json:"comments"`
+}
+
+type JiraAttachmentID string
+
+func (id *JiraAttachmentID) UnmarshalJSON(data []byte) error {
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		*id = JiraAttachmentID(text)
+		return nil
+	}
+
+	var number json.Number
+	if err := json.Unmarshal(data, &number); err != nil {
+		return err
+	}
+
+	*id = JiraAttachmentID(number.String())
+	return nil
+}
+
+type JiraAttachment struct {
+	Self      string           `json:"self,omitempty"`
+	ID        JiraAttachmentID `json:"id"`
+	Filename  string           `json:"filename"`
+	Author    JiraUser         `json:"author"`
+	Created   string           `json:"created"`
+	Size      int              `json:"size"`
+	MimeType  string           `json:"mimeType"`
+	Content   string           `json:"content"`
+	Thumbnail string           `json:"thumbnail,omitempty"`
 }
 
 type AddCommentInput struct {
@@ -314,6 +362,79 @@ func (jc JiraClient) GetIssueContext(ctx context.Context, issueOrKey string) (Ji
 	}
 
 	return jiraIssue, nil
+}
+
+func (jc JiraClient) ListIssueAttachments(issueOrKey string) ([]JiraAttachment, error) {
+	return jc.ListIssueAttachmentsContext(context.Background(), issueOrKey)
+}
+
+func (jc JiraClient) ListIssueAttachmentsContext(ctx context.Context, issueOrKey string) ([]JiraAttachment, error) {
+	body, err := jc.getContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s?fields=attachment", issueOrKey))
+	if err != nil {
+		return nil, err
+	}
+
+	var jiraIssue JiraIssue
+	if err := json.Unmarshal(body, &jiraIssue); err != nil {
+		return nil, err
+	}
+
+	return jiraIssue.Fields.Attachments, nil
+}
+
+func (jc JiraClient) GetAttachment(attachmentID string) (JiraAttachment, error) {
+	return jc.GetAttachmentContext(context.Background(), attachmentID)
+}
+
+func (jc JiraClient) GetAttachmentContext(ctx context.Context, attachmentID string) (JiraAttachment, error) {
+	body, err := jc.getContext(ctx, fmt.Sprintf("/rest/api/3/attachment/%s", attachmentID))
+	if err != nil {
+		return JiraAttachment{}, err
+	}
+
+	var attachment JiraAttachment
+	if err := json.Unmarshal(body, &attachment); err != nil {
+		return JiraAttachment{}, err
+	}
+
+	return attachment, nil
+}
+
+func (jc JiraClient) DownloadAttachmentContent(attachmentID string) ([]byte, error) {
+	return jc.DownloadAttachmentContentContext(context.Background(), attachmentID)
+}
+
+func (jc JiraClient) DownloadAttachmentContentContext(ctx context.Context, attachmentID string) ([]byte, error) {
+	return jc.getContext(ctx, fmt.Sprintf("/rest/api/3/attachment/content/%s?redirect=false", attachmentID))
+}
+
+func (jc JiraClient) DownloadAttachmentContentToWriter(ctx context.Context, attachmentID string, writer io.Writer) (int64, error) {
+	path := fmt.Sprintf("/rest/api/3/attachment/content/%s?redirect=false", attachmentID)
+	if !strings.HasPrefix(path, "/") {
+		return 0, fmt.Errorf("path must start with '/': %s", path)
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, jc.baseURL+path, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	response, err := jc.client.Do(request)
+	if err != nil {
+		return 0, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			return 0, err
+		}
+
+		return 0, fmt.Errorf("request failed with status %d: %s", response.StatusCode, string(body))
+	}
+
+	return io.Copy(writer, response.Body)
 }
 
 func (jc JiraClient) DeleteIssue(issueOrKey string) error {
@@ -601,8 +722,51 @@ func (jc JiraClient) AddIssueCommentContext(ctx context.Context, issueOrKey stri
 	if err := json.Unmarshal(responseBody, &comment); err != nil {
 		return JiraComment{}, err
 	}
+	normalizeJiraComment(&comment)
 
 	return comment, nil
+}
+
+func (jc JiraClient) ListIssueComments(issueOrKey string) (JiraCommentList, error) {
+	return jc.ListIssueCommentsContext(context.Background(), issueOrKey)
+}
+
+func (jc JiraClient) ListIssueCommentsContext(ctx context.Context, issueOrKey string) (JiraCommentList, error) {
+	const maxResults = 100
+
+	commentList := JiraCommentList{
+		MaxResults: maxResults,
+	}
+	startAt := 0
+
+	for {
+		responseBody, err := jc.getContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/comment?startAt=%d&maxResults=%d", issueOrKey, startAt, maxResults))
+		if err != nil {
+			return JiraCommentList{}, err
+		}
+
+		var page JiraCommentList
+		if err := json.Unmarshal(responseBody, &page); err != nil {
+			return JiraCommentList{}, err
+		}
+		for i := range page.Comments {
+			normalizeJiraComment(&page.Comments[i])
+		}
+
+		if commentList.StartAt == 0 {
+			commentList.StartAt = page.StartAt
+		}
+		commentList.Total = page.Total
+		commentList.Comments = append(commentList.Comments, page.Comments...)
+
+		if len(commentList.Comments) >= page.Total || len(page.Comments) == 0 {
+			break
+		}
+
+		startAt = page.StartAt + len(page.Comments)
+	}
+
+	return commentList, nil
 }
 
 func (jc JiraClient) DeleteIssueComment(issueOrKey string, commentID string) error {
@@ -611,6 +775,57 @@ func (jc JiraClient) DeleteIssueComment(issueOrKey string, commentID string) err
 
 func (jc JiraClient) DeleteIssueCommentContext(ctx context.Context, issueOrKey string, commentID string) error {
 	return jc.deleteContext(ctx, fmt.Sprintf("/rest/api/3/issue/%s/comment/%s", issueOrKey, commentID))
+}
+
+func normalizeJiraComment(comment *JiraComment) {
+	comment.BodyText = comment.Body.PlainText()
+	comment.AttachmentRefs = extractJiraCommentAttachmentRefs(comment.Body)
+}
+
+func extractJiraCommentAttachmentRefs(document JiraDocument) []JiraCommentAttachmentRef {
+	var refs []JiraCommentAttachmentRef
+	for _, node := range document.Content {
+		collectJiraCommentAttachmentRefs(node, &refs)
+	}
+
+	return refs
+}
+
+func collectJiraCommentAttachmentRefs(node JiraDocNode, refs *[]JiraCommentAttachmentRef) {
+	if strings.Contains(node.Text, "/attachment/") {
+		*refs = append(*refs, JiraCommentAttachmentRef{Type: "link", URL: node.Text})
+	}
+
+	switch node.Type {
+	case "media":
+		ref := JiraCommentAttachmentRef{Type: "media"}
+		if id, ok := node.Attrs["id"].(string); ok {
+			ref.ID = id
+		}
+		if alt, ok := node.Attrs["alt"].(string); ok {
+			ref.Filename = alt
+		}
+		if ref.ID != "" || ref.Filename != "" {
+			*refs = append(*refs, ref)
+		}
+	case "inlineCard", "blockCard":
+		if urlValue, ok := node.Attrs["url"].(string); ok && strings.Contains(urlValue, "/attachment/") {
+			*refs = append(*refs, JiraCommentAttachmentRef{Type: "link", URL: urlValue})
+		}
+	}
+
+	if href, ok := node.Attrs["href"].(string); ok && strings.Contains(href, "/attachment/") {
+		*refs = append(*refs, JiraCommentAttachmentRef{Type: "link", URL: href})
+	}
+	for _, mark := range node.Marks {
+		if href, ok := mark.Attrs["href"].(string); ok && strings.Contains(href, "/attachment/") {
+			*refs = append(*refs, JiraCommentAttachmentRef{Type: "link", URL: href})
+		}
+	}
+
+	for _, child := range node.Content {
+		collectJiraCommentAttachmentRefs(child, refs)
+	}
 }
 
 type JiraStatusScope struct {

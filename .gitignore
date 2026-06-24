@@ -1,5 +1,6 @@
 .env*
 !.envrc
+!.env.example
 bin
 coverage.out
 dist

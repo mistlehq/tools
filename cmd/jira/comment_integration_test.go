@@ -73,6 +73,39 @@ func TestIssueCommentAddWithStdin(t *testing.T) {
 	}
 }
 
+func TestIssueCommentListIncludesBodyAndAttachmentReferences(t *testing.T) {
+	env, issueKey := setupIsolatedIssue(t)
+	config, err := loadConfig(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	jc := NewJiraClient(config)
+	attachment := uploadJiraTestAttachment(t, jc, issueKey, "comment-attachment-reference.txt", "comment attachment reference\n")
+	comment, err := jc.AddIssueComment(issueKey, AddCommentInput{
+		Body: "please inspect " + attachment.Content,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	commandResult, err := runCommandWithInput(t, env, "", "jira", "issue", "comment", "list", issueKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := commandResult.stdout.String()
+	if !strings.Contains(output, comment.ID) {
+		t.Fatalf("expected comment list to include comment %s, got %q", comment.ID, output)
+	}
+	if !strings.Contains(output, "please inspect") {
+		t.Fatalf("expected comment list to include readable body text, got %q", output)
+	}
+	if !strings.Contains(output, string(attachment.ID)) && !strings.Contains(output, attachment.Content) {
+		t.Fatalf("expected comment list to include attachment reference, got %q", output)
+	}
+}
+
 func TestIssueCommentAddRequiresSingleBodySource(t *testing.T) {
 	_, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "comment", "add", jiraTestValidationIssueKey)
 	if err == nil {

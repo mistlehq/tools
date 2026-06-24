@@ -97,25 +97,28 @@ func TestMCPServerListsJiraTools(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"jira_auth_whoami":             jiraAuthWhoAmIDoc.Description,
-		"jira_project_list":            jiraProjectListDoc.Description,
-		"jira_issue_get":               jiraIssueGetDoc.Description,
-		"jira_issue_search":            jiraIssueSearchDoc.Description,
-		"jira_issue_create":            jiraIssueCreateDoc.Description,
-		"jira_issue_delete":            jiraIssueDeleteDoc.Description,
-		"jira_issue_comment_add":       jiraIssueCommentAddDoc.Description,
-		"jira_issue_comment_delete":    jiraIssueCommentDeleteDoc.Description,
-		"jira_issue_assign":            jiraIssueAssignDoc.Description,
-		"jira_issue_transition_list":   jiraIssueTransitionListDoc.Description,
-		"jira_issue_transition":        jiraIssueTransitionDoc.Description,
-		"jira_issue_update":            jiraIssueUpdateDoc.Description,
-		"jira_issue_editmeta":          jiraIssueEditMetaDoc.Description,
-		"jira_status_get":              jiraStatusGetDoc.Description,
-		"jira_status_search":           jiraStatusSearchDoc.Description,
-		"jira_status_create":           jiraStatusCreateDoc.Description,
-		"jira_status_update":           jiraStatusUpdateDoc.Description,
-		"jira_status_delete":           jiraStatusDeleteDoc.Description,
-		"jira_board_configuration_get": jiraBoardConfigurationGetDoc.Description,
+		"jira_auth_whoami":               jiraAuthWhoAmIDoc.Description,
+		"jira_project_list":              jiraProjectListDoc.Description,
+		"jira_issue_get":                 jiraIssueGetDoc.Description,
+		"jira_issue_search":              jiraIssueSearchDoc.Description,
+		"jira_issue_create":              jiraIssueCreateDoc.Description,
+		"jira_issue_delete":              jiraIssueDeleteDoc.Description,
+		"jira_issue_comment_add":         jiraIssueCommentAddDoc.Description,
+		"jira_issue_comment_list":        jiraIssueCommentListDoc.Description,
+		"jira_issue_attachment_list":     jiraIssueAttachmentListDoc.Description,
+		"jira_issue_attachment_download": jiraIssueAttachmentDownloadDoc.Description,
+		"jira_issue_comment_delete":      jiraIssueCommentDeleteDoc.Description,
+		"jira_issue_assign":              jiraIssueAssignDoc.Description,
+		"jira_issue_transition_list":     jiraIssueTransitionListDoc.Description,
+		"jira_issue_transition":          jiraIssueTransitionDoc.Description,
+		"jira_issue_update":              jiraIssueUpdateDoc.Description,
+		"jira_issue_editmeta":            jiraIssueEditMetaDoc.Description,
+		"jira_status_get":                jiraStatusGetDoc.Description,
+		"jira_status_search":             jiraStatusSearchDoc.Description,
+		"jira_status_create":             jiraStatusCreateDoc.Description,
+		"jira_status_update":             jiraStatusUpdateDoc.Description,
+		"jira_status_delete":             jiraStatusDeleteDoc.Description,
+		"jira_board_configuration_get":   jiraBoardConfigurationGetDoc.Description,
 	}
 	if len(toolsByName) != len(expected) {
 		t.Fatalf("expected exactly %d Jira tools, got %d: %#v", len(expected), len(toolsByName), toolsByName)
@@ -159,7 +162,8 @@ func TestMCPJiraIssueMutationTools(t *testing.T) {
 	}
 
 	jc := NewJiraClient(config)
-	template, err := getJiraTestIssueTemplate(jc, getJiraTestTemplateIssueKey(t))
+	templateIssueKey := getJiraTestTemplateIssueKey(t)
+	template, err := getJiraTestIssueTemplate(jc, templateIssueKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,12 +256,12 @@ func TestMCPJiraIssueMutationTools(t *testing.T) {
 	}
 
 	searchResult := callJiraMCPTool(t, session, "jira_issue_search", map[string]any{
-		"jql": "issuekey = " + created.Key,
+		"jql": "issuekey = " + templateIssueKey,
 	})
 	var searchOutput JiraIssueSearchResult
 	decodeMCPStructuredContent(t, searchResult, &searchOutput)
-	if len(searchOutput.Issues) != 1 || searchOutput.Issues[0].Key != created.Key {
-		t.Fatalf("expected jira_issue_search to find %s, got %#v", created.Key, searchOutput.Issues)
+	if len(searchOutput.Issues) != 1 || searchOutput.Issues[0].Key != templateIssueKey {
+		t.Fatalf("expected jira_issue_search to find %s, got %#v", templateIssueKey, searchOutput.Issues)
 	}
 
 	editMetaResult := callJiraMCPTool(t, session, "jira_issue_editmeta", map[string]any{
@@ -277,6 +281,22 @@ func TestMCPJiraIssueMutationTools(t *testing.T) {
 	decodeMCPStructuredContent(t, commentResult, &commentOutput)
 	if commentOutput.Comment.ID == "" {
 		t.Fatal("expected jira_issue_comment_add to return a comment ID")
+	}
+
+	commentListResult := callJiraMCPTool(t, session, "jira_issue_comment_list", map[string]any{
+		"issueKey": created.Key,
+	})
+	var commentList jiraIssueCommentListToolOutput
+	decodeMCPStructuredContent(t, commentListResult, &commentList)
+	foundComment := false
+	for _, comment := range commentList.Comments {
+		if comment.ID == commentOutput.Comment.ID && strings.Contains(comment.BodyText, "comment from MCP parity test") {
+			foundComment = true
+			break
+		}
+	}
+	if !foundComment {
+		t.Fatalf("expected jira_issue_comment_list to include comment %s, got %#v", commentOutput.Comment.ID, commentList.Comments)
 	}
 
 	callJiraMCPTool(t, session, "jira_issue_comment_delete", map[string]any{
@@ -459,6 +479,21 @@ func TestMCPJiraToolValidation(t *testing.T) {
 			arguments: map[string]any{
 				"issueKey": jiraTestValidationIssueKey,
 			},
+		},
+		{
+			name:      "comment list missing issue key",
+			tool:      "jira_issue_comment_list",
+			arguments: map[string]any{},
+		},
+		{
+			name:      "attachment list missing issue key",
+			tool:      "jira_issue_attachment_list",
+			arguments: map[string]any{},
+		},
+		{
+			name:      "attachment download missing attachment id",
+			tool:      "jira_issue_attachment_download",
+			arguments: map[string]any{},
 		},
 		{
 			name: "assign missing target",

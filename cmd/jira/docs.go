@@ -48,10 +48,28 @@ var jiraIssueCommentAddDoc = commandDoc{
 	Description: "Add a comment to a Jira issue.",
 }
 
+var jiraIssueCommentListDoc = commandDoc{
+	Command:     "jira issue comment list",
+	Summary:     "List comments on a Jira issue",
+	Description: "List comments on a Jira issue with readable body text and detected attachment references.",
+}
+
 var jiraIssueCommentDeleteDoc = commandDoc{
 	Command:     "jira issue comment delete",
 	Summary:     "Delete a comment from a Jira issue",
 	Description: "Delete a comment from a Jira issue.",
+}
+
+var jiraIssueAttachmentListDoc = commandDoc{
+	Command:     "jira issue attachment list",
+	Summary:     "List issue attachments",
+	Description: "List files attached to a Jira issue.",
+}
+
+var jiraIssueAttachmentDownloadDoc = commandDoc{
+	Command:     "jira issue attachment download",
+	Summary:     "Download an issue attachment",
+	Description: "Download a Jira issue attachment by attachment ID.",
 }
 
 var jiraIssueAssignDoc = commandDoc{
