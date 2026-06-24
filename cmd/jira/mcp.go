@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,8 +12,9 @@ import (
 )
 
 const (
-	defaultMCPAddr     = "127.0.0.1:7345"
-	defaultMCPEndpoint = "/mcp"
+	defaultMCPAddr                       = "127.0.0.1:7345"
+	defaultMCPEndpoint                   = "/mcp"
+	defaultMCPAttachmentDownloadMaxBytes = 5 * 1024 * 1024
 )
 
 type jiraMCPConfig struct {
@@ -54,8 +56,43 @@ type jiraIssueCommentAddToolInput struct {
 }
 
 type jiraIssueCommentAddToolOutput struct {
-	IssueKey string      `json:"issueKey"`
-	Comment  JiraComment `json:"comment"`
+	IssueKey string          `json:"issueKey"`
+	Comment  JiraCommentView `json:"comment"`
+}
+
+type jiraIssueCommentListToolInput struct {
+	IssueKey string `json:"issueKey" jsonschema:"Jira issue key, for example PROJ-123"`
+}
+
+type jiraIssueCommentListToolOutput struct {
+	Comments []JiraCommentView `json:"comments"`
+}
+
+type JiraCommentView struct {
+	ID             string                     `json:"id"`
+	Author         JiraUser                   `json:"author"`
+	Created        string                     `json:"created"`
+	BodyText       string                     `json:"bodyText"`
+	AttachmentRefs []JiraCommentAttachmentRef `json:"attachmentRefs,omitempty"`
+}
+
+type jiraIssueAttachmentListToolInput struct {
+	IssueKey string `json:"issueKey" jsonschema:"Jira issue key, for example PROJ-123"`
+}
+
+type jiraIssueAttachmentDownloadToolInput struct {
+	AttachmentID string `json:"attachmentId" jsonschema:"Jira attachment ID, for example 10001"`
+}
+
+type jiraIssueAttachmentListToolOutput struct {
+	IssueKey    string           `json:"issueKey"`
+	Attachments []JiraAttachment `json:"attachments"`
+}
+
+type jiraIssueAttachmentDownloadToolOutput struct {
+	Attachment      JiraAttachment `json:"attachment"`
+	ContentBase64   string         `json:"contentBase64"`
+	ContentEncoding string         `json:"contentEncoding"`
 }
 
 type jiraIssueCommentDeleteToolInput struct {
@@ -374,7 +411,83 @@ func newJiraMCPServer(jc JiraClient) *mcp.Server {
 
 		return nil, jiraIssueCommentAddToolOutput{
 			IssueKey: input.IssueKey,
-			Comment:  comment,
+			Comment:  newJiraCommentView(comment),
+		}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_issue_comment_list",
+		Title:       jiraIssueCommentListDoc.Command,
+		Description: jiraIssueCommentListDoc.Description,
+		Annotations: readOnlyAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraIssueCommentListToolInput) (*mcp.CallToolResult, jiraIssueCommentListToolOutput, error) {
+		if strings.TrimSpace(input.IssueKey) == "" {
+			return nil, jiraIssueCommentListToolOutput{}, fmt.Errorf("issueKey is required")
+		}
+
+		comments, err := jc.ListIssueCommentsContext(ctx, input.IssueKey)
+		if err != nil {
+			return nil, jiraIssueCommentListToolOutput{}, err
+		}
+
+		output := jiraIssueCommentListToolOutput{
+			Comments: make([]JiraCommentView, 0, len(comments.Comments)),
+		}
+		for _, comment := range comments.Comments {
+			output.Comments = append(output.Comments, newJiraCommentView(comment))
+		}
+
+		return nil, output, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_issue_attachment_list",
+		Title:       jiraIssueAttachmentListDoc.Command,
+		Description: jiraIssueAttachmentListDoc.Description,
+		Annotations: readOnlyAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraIssueAttachmentListToolInput) (*mcp.CallToolResult, jiraIssueAttachmentListToolOutput, error) {
+		if strings.TrimSpace(input.IssueKey) == "" {
+			return nil, jiraIssueAttachmentListToolOutput{}, fmt.Errorf("issueKey is required")
+		}
+
+		attachments, err := jc.ListIssueAttachmentsContext(ctx, input.IssueKey)
+		if err != nil {
+			return nil, jiraIssueAttachmentListToolOutput{}, err
+		}
+
+		return nil, jiraIssueAttachmentListToolOutput{
+			IssueKey:    input.IssueKey,
+			Attachments: attachments,
+		}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "jira_issue_attachment_download",
+		Title:       jiraIssueAttachmentDownloadDoc.Command,
+		Description: jiraIssueAttachmentDownloadDoc.Description,
+		Annotations: readOnlyAnnotations,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input *jiraIssueAttachmentDownloadToolInput) (*mcp.CallToolResult, jiraIssueAttachmentDownloadToolOutput, error) {
+		if strings.TrimSpace(input.AttachmentID) == "" {
+			return nil, jiraIssueAttachmentDownloadToolOutput{}, fmt.Errorf("attachmentId is required")
+		}
+
+		attachment, err := jc.GetAttachmentContext(ctx, input.AttachmentID)
+		if err != nil {
+			return nil, jiraIssueAttachmentDownloadToolOutput{}, err
+		}
+		if attachment.Size > defaultMCPAttachmentDownloadMaxBytes {
+			return nil, jiraIssueAttachmentDownloadToolOutput{}, fmt.Errorf("attachment %s is %d bytes; MCP inline downloads are limited to %d bytes, use jira issue attachment download instead", input.AttachmentID, attachment.Size, defaultMCPAttachmentDownloadMaxBytes)
+		}
+
+		content, err := jc.DownloadAttachmentContentContext(ctx, input.AttachmentID)
+		if err != nil {
+			return nil, jiraIssueAttachmentDownloadToolOutput{}, err
+		}
+
+		return nil, jiraIssueAttachmentDownloadToolOutput{
+			Attachment:      attachment,
+			ContentBase64:   base64.StdEncoding.EncodeToString(content),
+			ContentEncoding: "base64",
 		}, nil
 	})
 
@@ -682,6 +795,16 @@ func validateJiraIssueCreateToolInput(input *jiraIssueCreateToolInput) error {
 	}
 
 	return nil
+}
+
+func newJiraCommentView(comment JiraComment) JiraCommentView {
+	return JiraCommentView{
+		ID:             comment.ID,
+		Author:         comment.Author,
+		Created:        comment.Created,
+		BodyText:       comment.BodyText,
+		AttachmentRefs: comment.AttachmentRefs,
+	}
 }
 
 func buildJiraMCPAssignInput(ctx context.Context, jc JiraClient, input *jiraIssueAssignToolInput) (AssignIssueInput, error) {
@@ -1003,6 +1126,9 @@ Tools:
   jira_issue_search             %s
   jira_issue_delete             %s
   jira_issue_comment_add        %s
+  jira_issue_comment_list       %s
+  jira_issue_attachment_list    %s
+  jira_issue_attachment_download %s
   jira_issue_comment_delete     %s
   jira_issue_assign             %s
   jira_issue_transition_list    %s
@@ -1017,5 +1143,5 @@ Status and board tools:
   jira_status_update               %s
   jira_status_delete               %s
   jira_board_configuration_get     %s
-`, defaultMCPAddr, defaultMCPEndpoint, jiraAuthWhoAmIDoc.Summary, jiraProjectListDoc.Summary, jiraIssueCreateDoc.Summary, jiraIssueGetDoc.Summary, jiraIssueSearchDoc.Summary, jiraIssueDeleteDoc.Summary, jiraIssueCommentAddDoc.Summary, jiraIssueCommentDeleteDoc.Summary, jiraIssueAssignDoc.Summary, jiraIssueTransitionListDoc.Summary, jiraIssueTransitionDoc.Summary, jiraIssueUpdateDoc.Summary, jiraIssueEditMetaDoc.Summary, jiraStatusGetDoc.Summary, jiraStatusSearchDoc.Summary, jiraStatusCreateDoc.Summary, jiraStatusUpdateDoc.Summary, jiraStatusDeleteDoc.Summary, jiraBoardConfigurationGetDoc.Summary)
+`, defaultMCPAddr, defaultMCPEndpoint, jiraAuthWhoAmIDoc.Summary, jiraProjectListDoc.Summary, jiraIssueCreateDoc.Summary, jiraIssueGetDoc.Summary, jiraIssueSearchDoc.Summary, jiraIssueDeleteDoc.Summary, jiraIssueCommentAddDoc.Summary, jiraIssueCommentListDoc.Summary, jiraIssueAttachmentListDoc.Summary, jiraIssueAttachmentDownloadDoc.Summary, jiraIssueCommentDeleteDoc.Summary, jiraIssueAssignDoc.Summary, jiraIssueTransitionListDoc.Summary, jiraIssueTransitionDoc.Summary, jiraIssueUpdateDoc.Summary, jiraIssueEditMetaDoc.Summary, jiraStatusGetDoc.Summary, jiraStatusSearchDoc.Summary, jiraStatusCreateDoc.Summary, jiraStatusUpdateDoc.Summary, jiraStatusDeleteDoc.Summary, jiraBoardConfigurationGetDoc.Summary)
 }

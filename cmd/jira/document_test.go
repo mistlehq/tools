@@ -66,3 +66,60 @@ func TestNewJiraTextDocumentNormalizesWindowsNewlines(t *testing.T) {
 		t.Fatalf("unexpected normalized content: %#v", document.Content)
 	}
 }
+
+func TestJiraDocumentPlainText(t *testing.T) {
+	document, err := NewJiraTextDocument("first\nsecond")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := document.PlainText(); got != "first\nsecond" {
+		t.Fatalf("unexpected plain text: %q", got)
+	}
+}
+
+func TestExtractJiraCommentAttachmentRefsFromPlainTextAttachmentURL(t *testing.T) {
+	document, err := NewJiraTextDocument("see https://mistle.atlassian.net/rest/api/3/attachment/content/10001")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	refs := extractJiraCommentAttachmentRefs(document)
+	if len(refs) != 1 {
+		t.Fatalf("expected 1 attachment reference, got %#v", refs)
+	}
+
+	if refs[0].Type != "link" || refs[0].URL == "" {
+		t.Fatalf("unexpected attachment reference: %#v", refs[0])
+	}
+}
+
+func TestExtractJiraCommentAttachmentRefsFromLinkMark(t *testing.T) {
+	attachmentURL := "https://mistle.atlassian.net/rest/api/3/attachment/content/10001"
+	document := JiraDocument{
+		Type:    "doc",
+		Version: 1,
+		Content: []JiraDocNode{{
+			Type: "paragraph",
+			Content: []JiraDocNode{{
+				Type: "text",
+				Text: "linked attachment",
+				Marks: []JiraDocMark{{
+					Type: "link",
+					Attrs: map[string]any{
+						"href": attachmentURL,
+					},
+				}},
+			}},
+		}},
+	}
+
+	refs := extractJiraCommentAttachmentRefs(document)
+	if len(refs) != 1 {
+		t.Fatalf("expected 1 attachment reference, got %#v", refs)
+	}
+
+	if refs[0].Type != "link" || refs[0].URL != attachmentURL {
+		t.Fatalf("unexpected attachment reference: %#v", refs[0])
+	}
+}

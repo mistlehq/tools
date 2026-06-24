@@ -47,9 +47,13 @@ The supported commands are:
 - `jira issue search '<jql query>'`
 - `jira issue delete <key>`
 - `jira issue comment help`
+- `jira issue comment list <issue-key>`
 - `jira issue comment add <issue-key> --body <text>`
 - `jira issue comment add <issue-key> --body-file <path>`
 - `jira issue comment delete <issue-key> <comment-id>`
+- `jira issue attachment help`
+- `jira issue attachment list <issue-key>`
+- `jira issue attachment download <attachment-id> --output <path>`
 - `jira issue assign help`
 - `jira issue assign <issue-key> --me`
 - `jira issue assign <issue-key> --account-id <account-id>`
@@ -88,8 +92,12 @@ jira issue get --help
 jira issue search --help
 jira issue delete --help
 jira issue comment help
+jira issue comment list --help
 jira issue comment add --help
 jira issue comment delete --help
+jira issue attachment help
+jira issue attachment list --help
+jira issue attachment download --help
 jira issue assign help
 jira issue assign --help
 jira issue transition help
@@ -133,6 +141,9 @@ The MCP tools mirror the provider-backed CLI command surface and supported Jira 
 | `jira_issue_search` | Search Jira issues with a JQL query. | `jira issue search '<jql>'` / `POST /rest/api/3/search/jql` | Read-only |
 | `jira_issue_delete` | Delete a Jira issue by key. | `jira issue delete <key>` / `DELETE /rest/api/3/issue/{issueIdOrKey}` | Destructive |
 | `jira_issue_comment_add` | Add a comment to a Jira issue. | `jira issue comment add <key> --body <text>` / `POST /rest/api/3/issue/{issueIdOrKey}/comment` | Mutating, non-destructive |
+| `jira_issue_comment_list` | List comments on a Jira issue. | `jira issue comment list <key>` / `GET /rest/api/3/issue/{issueIdOrKey}/comment` | Read-only |
+| `jira_issue_attachment_list` | List files attached to a Jira issue. | `jira issue attachment list <key>` / `GET /rest/api/3/issue/{issueIdOrKey}?fields=attachment` | Read-only |
+| `jira_issue_attachment_download` | Download a small issue attachment inline as base64. | `GET /rest/api/3/attachment/{id}` + `GET /rest/api/3/attachment/content/{id}` | Read-only |
 | `jira_issue_comment_delete` | Delete a comment from a Jira issue. | `jira issue comment delete <key> <comment-id>` / `DELETE /rest/api/3/issue/{issueIdOrKey}/comment/{id}` | Destructive |
 | `jira_issue_assign` | Assign or clear the assignee on a Jira issue. | `jira issue assign <key> ...` / `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | Mutating, non-destructive |
 | `jira_issue_transition_list` | List available workflow transitions. | `jira issue transition list <key>` / `GET /rest/api/3/issue/{issueIdOrKey}/transitions` | Read-only |
@@ -152,6 +163,8 @@ The status and board configuration tools expose Jira configuration APIs and requ
 | `jira_board_configuration_get` | Read Jira Software board configuration and status-column mappings. | `GET /rest/agile/1.0/board/{boardId}/configuration` | Read-only |
 
 Jira Cloud does not currently expose a public board-column mutation endpoint in the documented Agile API. The MCP therefore reads board column configuration but does not create, rename, delete, or remap board columns.
+
+`jira_issue_attachment_download` returns attachment bytes as base64 inside the MCP response and is limited to attachments up to 5 MiB. Use `jira issue attachment download` for larger files because the CLI streams bytes directly to disk.
 
 ## Auth Scopes
 
@@ -193,9 +206,12 @@ The tables below map commands to the Jira REST endpoints they call. For commands
 | `jira issue get <key>` | Fetch a single issue. | `GET /rest/api/3/issue/{issueIdOrKey}` | `read:jira-work` | `read:issue-meta:jira`, `read:issue-security-level:jira`, `read:issue.vote:jira`, `read:issue.changelog:jira`, `read:avatar:jira`, `...` | Atlassian collapses the full granular list in the docs UI for this endpoint. |
 | `jira issue search '<jql>'` | Search issues with JQL. | `POST /rest/api/3/search/jql` | `read:jira-work` | `read:issue-details:jira`, `read:audit-log:jira`, `read:avatar:jira`, `read:field-configuration:jira`, `read:issue-meta:jira` | Returns only issues visible to the caller. |
 | `jira issue delete <key>` | Delete a single issue. | `DELETE /rest/api/3/issue/{issueIdOrKey}` | `write:jira-work` | `delete:issue:jira` | Jira may require extra project permissions or `deleteSubtasks=true` when subtasks exist. |
+| `jira issue comment list <key>` | List comments with readable body text and attachment references. | `GET /rest/api/3/issue/{issueIdOrKey}/comment` | `read:jira-work` | `read:comment:jira`, `read:comment.property:jira`, `read:group:jira`, `read:project:jira`, `read:project-role:jira`, `...` | Returns only comments visible to the caller. |
 | `jira issue comment add <key> --body <text>` | Add a comment from inline text. | `POST /rest/api/3/issue/{issueIdOrKey}/comment` | `write:jira-work` | `read:comment:jira`, `read:comment.property:jira`, `read:group:jira`, `read:project:jira`, `read:project-role:jira`, `...` | Atlassian collapses the full granular list in the docs UI for this endpoint. |
 | `jira issue comment add <key> --body-file <path>` | Add a comment from a file or stdin. | `POST /rest/api/3/issue/{issueIdOrKey}/comment` | `write:jira-work` | `read:comment:jira`, `read:comment.property:jira`, `read:group:jira`, `read:project:jira`, `read:project-role:jira`, `...` | Use `--body-file -` to read the comment body from stdin. |
 | `jira issue comment delete <key> <comment-id>` | Delete a comment. | `DELETE /rest/api/3/issue/{issueIdOrKey}/comment/{id}` | `write:jira-work` | `delete:comment:jira`, `delete:comment.property:jira` | Runtime Jira comment visibility and delete permissions still apply. |
+| `jira issue attachment list <key>` | List files attached to an issue. | `GET /rest/api/3/issue/{issueIdOrKey}?fields=attachment` | `read:jira-work` | `read:issue-details:jira`, `read:avatar:jira` | Attachment content URLs still require Jira permissions when fetched. |
+| `jira issue attachment download <id> --output <path>` | Download attachment bytes. | `GET /rest/api/3/attachment/{id}` + `GET /rest/api/3/attachment/content/{id}` | `read:jira-work` | `read:attachment:jira`, `read:avatar:jira` | Streams bytes to a local path and prints metadata. |
 | `jira issue assign <key> --account-id <id>` | Assign the issue to a specific Jira account. | `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | `write:jira-work` | `write:issue:jira` | Runtime Jira project permissions still apply. |
 | `jira issue assign <key> --unassigned` | Clear the assignee. | `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | `write:jira-work` | `write:issue:jira` | Runtime Jira project permissions still apply. |
 | `jira issue assign <key> --me` | Assign the issue to the current user. | `GET /rest/api/3/myself` + `PUT /rest/api/3/issue/{issueIdOrKey}/assignee` | `read:jira-user` + `write:jira-work` | `read:application-role:jira`, `read:group:jira`, `read:user:jira`, `read:avatar:jira`, `write:issue:jira` | Uses `whoami`-style identity lookup before assignment. |
@@ -249,10 +265,13 @@ jira issue create --project-key PROJ --issue-type Task --summary 'Plan rollout' 
 jira issue get PROJ-123
 jira issue search 'project = PROJ ORDER BY updated DESC'
 jira issue delete PROJ-123
+jira issue comment list PROJ-123
 jira issue comment add PROJ-123 --body 'Looks good'
 jira issue comment add PROJ-123 --body-file ./comment.txt
 jira issue comment add PROJ-123 --body-file -
 jira issue comment delete PROJ-123 10001
+jira issue attachment list PROJ-123
+jira issue attachment download 10001 --output ./attachment.png
 jira issue assign PROJ-123 --me
 jira issue assign PROJ-123 --account-id 712020:abc123
 jira issue assign PROJ-123 --unassigned
@@ -274,5 +293,5 @@ jira mcp serve --addr 127.0.0.1:8080 --endpoint /mcp
 ## Build
 
 ```sh
-mkdir -p dist && go build -o dist/jira ./cmd/jira
+mkdir -p dist && mise exec -- go build -o dist/jira ./cmd/jira
 ```

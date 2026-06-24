@@ -47,7 +47,7 @@ Build from source:
 ```sh
 mise trust ./mise.toml
 mise install
-mkdir -p dist && go build -o dist/jira ./cmd/jira
+mkdir -p dist && mise exec -- go build -o dist/jira ./cmd/jira
 ```
 
 ## Usage
@@ -60,3 +60,19 @@ Some CLIs also expose local MCP servers for agent clients. Start with the provid
 jira mcp help
 jira mcp serve --help
 ```
+
+## Local Integration Tests
+
+Some provider integration tests need real upstream credentials. Copy `.env.example` to `.env.local`, fill in the provider values, then export them before running the focused tests.
+
+For Jira against the Mistle Atlassian tenant:
+
+```sh
+set -a
+source .env.local
+set +a
+
+mise exec -- go test ./cmd/jira -run TestJiraAttachmentAPIAccess -count=1 -v
+```
+
+The Jira CLI itself does not inject auth headers. The Jira integration test harness uses `JIRA_TEST_*` values to start a local auth-injecting proxy, then points the CLI at that proxy.

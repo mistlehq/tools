@@ -80,9 +80,24 @@ func TestLeafCommandsAcceptDashDashHelp(t *testing.T) {
 			want: "Exactly one of --body or --body-file is required.",
 		},
 		{
+			name: "issue comment list",
+			args: []string{"jira", "issue", "comment", "list", "--help"},
+			want: "List comments on a Jira issue with readable body text and detected attachment references.",
+		},
+		{
 			name: "issue comment delete",
 			args: []string{"jira", "issue", "comment", "delete", "--help"},
 			want: "Delete a comment from a Jira issue.",
+		},
+		{
+			name: "issue attachment list",
+			args: []string{"jira", "issue", "attachment", "list", "--help"},
+			want: "List files attached to a Jira issue.",
+		},
+		{
+			name: "issue attachment download",
+			args: []string{"jira", "issue", "attachment", "download", "--help"},
+			want: "Download a Jira issue attachment by attachment ID.",
 		},
 		{
 			name: "issue assign",
@@ -132,6 +147,7 @@ func TestIssueHelpListsNestedFamilies(t *testing.T) {
 		"jira issue create --project-key <key> --issue-type <name> --summary <text>",
 		"jira issue delete <issue-key>",
 		"jira issue comment help",
+		"jira issue attachment help",
 		"jira issue assign help",
 		"jira issue transition help",
 		"jira issue update help",
@@ -176,6 +192,10 @@ func TestIssueCommentHelp(t *testing.T) {
 	}
 
 	output := strings.TrimSpace(commandResult.stdout.String())
+	if !strings.Contains(output, "jira issue comment list <issue-key>") {
+		t.Fatal("expected issue comment help to mention list usage")
+	}
+
 	if !strings.Contains(output, "jira issue comment add <issue-key> --body <text>") {
 		t.Fatal("expected issue comment help to mention --body usage")
 	}
@@ -186,6 +206,22 @@ func TestIssueCommentHelp(t *testing.T) {
 
 	if !strings.Contains(output, "jira issue comment delete <issue-key> <comment-id>") {
 		t.Fatal("expected issue comment help to mention delete usage")
+	}
+}
+
+func TestIssueAttachmentHelp(t *testing.T) {
+	commandResult, err := runCommandWithInput(t, Environment{}, "", "jira", "issue", "attachment", "help")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := strings.TrimSpace(commandResult.stdout.String())
+	if !strings.Contains(output, "jira issue attachment list <issue-key>") {
+		t.Fatal("expected issue attachment help to mention list usage")
+	}
+
+	if !strings.Contains(output, "jira issue attachment download <attachment-id> --output <path>") {
+		t.Fatal("expected issue attachment help to mention download usage")
 	}
 }
 

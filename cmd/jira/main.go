@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/mistlehq/tools/internal/argparse"
 	"github.com/mistlehq/tools/internal/textinput"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -252,6 +254,8 @@ func (cli CLI) runIssue(args []string) error {
 		return cli.runIssueDelete(args[1:])
 	case "comment":
 		return cli.runIssueComment(args[1:])
+	case "attachment":
+		return cli.runIssueAttachment(args[1:])
 	case "assign":
 		return cli.runIssueAssign(args[1:])
 	case "transition":
@@ -383,12 +387,40 @@ func (cli CLI) runIssueComment(args []string) error {
 	}
 
 	switch args[0] {
+	case "list":
+		return cli.runIssueCommentList(args[1:])
 	case "add":
 		return cli.runIssueCommentAdd(args[1:])
 	case "delete":
 		return cli.runIssueCommentDelete(args[1:])
 	default:
 		return fmt.Errorf("unsupported issue comment command: %s", args[0])
+	}
+}
+
+func (cli CLI) runIssueAttachment(args []string) error {
+	if len(args) == 0 || isHelpToken(args[0]) {
+		cli.printIssueAttachmentHelp()
+		return nil
+	}
+
+	switch args[0] {
+	case "list":
+		if isSingleHelpArg(args[1:]) {
+			cli.printIssueAttachmentListHelp()
+			return nil
+		}
+
+		return cli.runIssueAttachmentList(args[1:])
+	case "download":
+		if isSingleHelpArg(args[1:]) {
+			cli.printIssueAttachmentDownloadHelp()
+			return nil
+		}
+
+		return cli.runIssueAttachmentDownload(args[1:])
+	default:
+		return fmt.Errorf("unsupported issue attachment command: %s", args[0])
 	}
 }
 
@@ -884,6 +916,42 @@ func (cli CLI) runIssueCommentAdd(args []string) error {
 	return nil
 }
 
+func (cli CLI) runIssueCommentList(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueCommentListHelp()
+		return nil
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("issue comment list expects exactly 1 positional argument")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	comments, err := jc.ListIssueComments(args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "ID\tAUTHOR\tCREATED\tBODY\tATTACHMENT REFS")
+	for _, comment := range comments.Comments {
+		fmt.Fprintf(
+			cli.stdout,
+			"%s\t%s\t%s\t%s\t%s\n",
+			comment.ID,
+			comment.Author.DisplayName,
+			comment.Created,
+			tabSafe(comment.BodyText),
+			tabSafe(formatJiraCommentAttachmentRefs(comment.AttachmentRefs)),
+		)
+	}
+
+	return nil
+}
+
 func (cli CLI) runIssueCommentDelete(args []string) error {
 	if isSingleHelpArg(args) {
 		cli.printIssueCommentDeleteHelp()
@@ -909,6 +977,136 @@ func (cli CLI) runIssueCommentDelete(args []string) error {
 	fmt.Fprintln(cli.stdout, "Comment ID: "+commentID)
 	fmt.Fprintln(cli.stdout, "Deleted: true")
 	return nil
+}
+
+func (cli CLI) runIssueAttachmentList(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueAttachmentListHelp()
+		return nil
+	}
+
+	if len(args) != 1 {
+		return fmt.Errorf("issue attachment list expects exactly 1 positional argument")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	attachments, err := jc.ListIssueAttachments(args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(cli.stdout, "ID\tFILENAME\tMIME TYPE\tSIZE\tCREATED\tAUTHOR\tCONTENT URL")
+	for _, attachment := range attachments {
+		fmt.Fprintf(
+			cli.stdout,
+			"%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
+			attachment.ID,
+			tabSafe(attachment.Filename),
+			attachment.MimeType,
+			attachment.Size,
+			attachment.Created,
+			tabSafe(attachment.Author.DisplayName),
+			attachment.Content,
+		)
+	}
+
+	return nil
+}
+
+func (cli CLI) runIssueAttachmentDownload(args []string) error {
+	if isSingleHelpArg(args) {
+		cli.printIssueAttachmentDownloadHelp()
+		return nil
+	}
+
+	parsedArgs, err := argparse.Parse(args, map[string]argparse.Spec{
+		"output": {
+			TakesValue: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(parsedArgs.Positionals) != 1 {
+		return fmt.Errorf("issue attachment download expects exactly 1 positional argument")
+	}
+
+	outputPath := parsedArgs.First("output")
+	if strings.TrimSpace(outputPath) == "" {
+		return fmt.Errorf("--output is required and must not be empty")
+	}
+
+	jc, err := cli.jiraClient()
+	if err != nil {
+		return err
+	}
+
+	attachmentID := parsedArgs.Positionals[0]
+	attachment, err := jc.GetAttachment(attachmentID)
+	if err != nil {
+		return err
+	}
+
+	outputDir := filepath.Dir(outputPath)
+	outputFile, err := os.CreateTemp(outputDir, ".jira-attachment-*")
+	if err != nil {
+		return err
+	}
+	tempPath := outputFile.Name()
+	downloadSucceeded := false
+	defer func() {
+		if !downloadSucceeded {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	written, err := jc.DownloadAttachmentContentToWriter(context.Background(), attachmentID, outputFile)
+	if err != nil {
+		_ = outputFile.Close()
+		return err
+	}
+	if err := outputFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tempPath, 0o600); err != nil {
+		return err
+	}
+	if err := os.Rename(tempPath, outputPath); err != nil {
+		return err
+	}
+	downloadSucceeded = true
+
+	fmt.Fprintln(cli.stdout, "Attachment ID: "+string(attachment.ID))
+	fmt.Fprintln(cli.stdout, "Filename: "+attachment.Filename)
+	fmt.Fprintf(cli.stdout, "Bytes: %d\n", written)
+	fmt.Fprintln(cli.stdout, "Output: "+outputPath)
+	return nil
+}
+
+func tabSafe(text string) string {
+	replacer := strings.NewReplacer("\t", " ", "\r", " ", "\n", " ")
+	return strings.TrimSpace(replacer.Replace(text))
+}
+
+func formatJiraCommentAttachmentRefs(refs []JiraCommentAttachmentRef) string {
+	parts := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		switch {
+		case ref.Filename != "":
+			parts = append(parts, ref.Filename)
+		case ref.URL != "":
+			parts = append(parts, ref.URL)
+		case ref.ID != "":
+			parts = append(parts, ref.ID)
+		}
+	}
+
+	return strings.Join(parts, ", ")
 }
 
 func (cli CLI) runIssueGet(jc JiraClient, args []string) error {
@@ -974,6 +1172,7 @@ Usage:
   jira issue delete <issue-key>
   jira issue delete --help
   jira issue comment help
+  jira issue attachment help
   jira issue assign help
   jira issue transition help
   jira issue update help
@@ -985,6 +1184,7 @@ Commands:
   search      Search issues with JQL
   delete      Delete a single issue
   comment     Add comments to issues
+  attachment  List issue attachments
   assign      Change assignees
   transition  List or apply workflow transitions
   update      Edit summary, description, and other editable fields
@@ -1084,16 +1284,36 @@ Manage Jira issue comments.
 
 Usage:
   jira issue comment help
+  jira issue comment list <issue-key>
   jira issue comment add <issue-key> --body <text>
   jira issue comment add <issue-key> --body-file <path>
   jira issue comment delete <issue-key> <comment-id>
   jira issue comment delete --help
+  jira issue comment list --help
   jira issue comment add --help
 
 Commands:
+  list      List issue comments with readable body text and attachment references
   add       Create a new issue comment from inline text, a file, or stdin
   delete    Delete an existing issue comment by ID
 `)
+}
+
+func (cli CLI) printIssueCommentListHelp() {
+	fmt.Fprintf(cli.stdout, `jira issue comment list
+
+%s
+
+Usage:
+  jira issue comment list <issue-key>
+  jira issue comment list --help
+
+Output:
+  Prints a table with comment ID, author, created timestamp, readable body text, and attachment references detected in the comment body.
+
+Example:
+  jira issue comment list PROJ-123
+`, jiraIssueCommentListDoc.Description)
 }
 
 func (cli CLI) printIssueCommentAddHelp() {
@@ -1128,7 +1348,59 @@ Usage:
 
 Example:
   jira issue comment delete PROJ-123 10001
-`, jiraIssueCommentDeleteDoc.Description)
+	`, jiraIssueCommentDeleteDoc.Description)
+}
+
+func (cli CLI) printIssueAttachmentHelp() {
+	fmt.Fprint(cli.stdout, `jira issue attachment
+
+Inspect Jira issue attachments.
+
+Usage:
+  jira issue attachment help
+  jira issue attachment list <issue-key>
+  jira issue attachment list --help
+  jira issue attachment download <attachment-id> --output <path>
+  jira issue attachment download --help
+
+Commands:
+  list      List files attached to an issue
+  download  Download an attachment by ID
+`)
+}
+
+func (cli CLI) printIssueAttachmentListHelp() {
+	fmt.Fprintf(cli.stdout, `jira issue attachment list
+
+%s
+
+Usage:
+  jira issue attachment list <issue-key>
+  jira issue attachment list --help
+
+Output:
+  Prints a table with attachment ID, filename, MIME type, size, created timestamp, author, and content URL.
+
+Example:
+  jira issue attachment list PROJ-123
+`, jiraIssueAttachmentListDoc.Description)
+}
+
+func (cli CLI) printIssueAttachmentDownloadHelp() {
+	fmt.Fprintf(cli.stdout, `jira issue attachment download
+
+%s
+
+Usage:
+  jira issue attachment download <attachment-id> --output <path>
+  jira issue attachment download --help
+
+Output:
+  Writes the attachment bytes to --output and prints attachment ID, filename, byte count, and output path.
+
+Example:
+  jira issue attachment download 10001 --output ./attachment.png
+`, jiraIssueAttachmentDownloadDoc.Description)
 }
 
 func (cli CLI) printIssueAssignHelp() {
@@ -1323,8 +1595,10 @@ Common Starting Points:
 
 Issue Workflows:
   jira issue create --project-key PROJ --issue-type Task --summary 'Tighten validation'
+  jira issue comment list PROJ-123
   jira issue comment add PROJ-123 --body 'Looks good'
   jira issue comment delete PROJ-123 10001
+  jira issue attachment list PROJ-123
   jira issue assign PROJ-123 --me
   jira issue transition list PROJ-123
   jira issue transition PROJ-123 --to 'In Progress'
@@ -1339,6 +1613,7 @@ Dive Deeper:
   jira issue help
   jira issue create --help
   jira issue comment help
+  jira issue attachment help
   jira issue delete --help
   jira issue assign help
   jira issue transition help
