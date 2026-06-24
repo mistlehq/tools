@@ -35,6 +35,8 @@ All CLIs in this repository follow the same basic shape:
   Google Analytics CLI.
 - [`googleads`](./cmd/googleads/README.md)
   Google Ads API CLI.
+- [`gws`](./cmd/gws/README.md)
+  Google Workspace Drive, Sheets, Docs, and Slides CLI.
 - [`shopify`](./cmd/shopify/README.md)
   Shopify Admin API CLI.
 - [`metaads`](./cmd/metaads/README.md)
