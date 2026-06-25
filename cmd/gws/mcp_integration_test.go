@@ -23,7 +23,7 @@ func TestMCPServeHelp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !containsAll(result.stdout.String(), []string{"--tools <list>", "gws_drive_files_list", "gws_sheets_values_update", "gws_docs_document_batch_update", "gws_slides_presentation_batch_update"}) {
+	if !containsAll(result.stdout.String(), []string{"--tools <list>", "gws_drive_files_list", "gws_sheets_values_update", "gws_docs_document_batch_update", "gws_slides_presentation_batch_update", "gws_gmail_messages_list", "gws_calendar_freebusy_query", "gws_chat_spaces_list", "gws_people_search_contacts"}) {
 		t.Fatalf("unexpected mcp serve help: %s", result.stdout.String())
 	}
 }
@@ -63,6 +63,32 @@ func TestMCPServerListsGWSToolsWithAnnotations(t *testing.T) {
 		"gws_slides_presentation_get":          gwsSlidesPresentationGetDoc,
 		"gws_slides_presentation_create":       gwsSlidesPresentationCreateDoc,
 		"gws_slides_presentation_batch_update": gwsSlidesPresentationBatchUpdateDoc,
+		"gws_gmail_messages_list":              gwsGmailMessagesListDoc,
+		"gws_gmail_message_get":                gwsGmailMessageGetDoc,
+		"gws_gmail_message_send":               gwsGmailMessageSendDoc,
+		"gws_gmail_drafts_list":                gwsGmailDraftsListDoc,
+		"gws_gmail_draft_get":                  gwsGmailDraftGetDoc,
+		"gws_gmail_draft_create":               gwsGmailDraftCreateDoc,
+		"gws_gmail_draft_send":                 gwsGmailDraftSendDoc,
+		"gws_gmail_draft_delete":               gwsGmailDraftDeleteDoc,
+		"gws_calendar_calendar_list_list":      gwsCalendarListListDoc,
+		"gws_calendar_calendar_list_get":       gwsCalendarListGetDoc,
+		"gws_calendar_events_list":             gwsCalendarEventsListDoc,
+		"gws_calendar_event_get":               gwsCalendarEventGetDoc,
+		"gws_calendar_event_insert":            gwsCalendarEventInsertDoc,
+		"gws_calendar_event_patch":             gwsCalendarEventPatchDoc,
+		"gws_calendar_event_delete":            gwsCalendarEventDeleteDoc,
+		"gws_calendar_freebusy_query":          gwsCalendarFreeBusyQueryDoc,
+		"gws_chat_spaces_list":                 gwsChatSpacesListDoc,
+		"gws_chat_space_get":                   gwsChatSpaceGetDoc,
+		"gws_chat_messages_list":               gwsChatMessagesListDoc,
+		"gws_chat_message_get":                 gwsChatMessageGetDoc,
+		"gws_chat_message_create":              gwsChatMessageCreateDoc,
+		"gws_chat_members_list":                gwsChatMembersListDoc,
+		"gws_people_person_get":                gwsPeoplePersonGetDoc,
+		"gws_people_connections_list":          gwsPeopleConnectionsListDoc,
+		"gws_people_search_contacts":           gwsPeopleSearchContactsDoc,
+		"gws_people_search_directory":          gwsPeopleSearchDirectoryDoc,
 	}
 	for name, doc := range expected {
 		tool, ok := toolsByName[name]
@@ -89,11 +115,15 @@ func TestMCPServerListsGWSToolsWithAnnotations(t *testing.T) {
 
 func TestMCPServerFiltersToolsByGroupAndName(t *testing.T) {
 	session := newGWSMCPTestSession(t, NewGWSClient(Config{
-		DriveBaseURL:  "http://127.0.0.1",
-		SheetsBaseURL: "http://127.0.0.1",
-		DocsBaseURL:   "http://127.0.0.1",
-		SlidesBaseURL: "http://127.0.0.1",
-	}), map[string]bool{"drive": true, "gws_docs_document_get": true})
+		DriveBaseURL:    "http://127.0.0.1",
+		SheetsBaseURL:   "http://127.0.0.1",
+		DocsBaseURL:     "http://127.0.0.1",
+		SlidesBaseURL:   "http://127.0.0.1",
+		GmailBaseURL:    "http://127.0.0.1",
+		CalendarBaseURL: "http://127.0.0.1",
+		ChatBaseURL:     "http://127.0.0.1",
+		PeopleBaseURL:   "http://127.0.0.1",
+	}), map[string]bool{"drive": true, "gws_docs_document_get": true, "gmail": true})
 	defer session.Close()
 
 	toolsResult, err := session.ListTools(context.Background(), nil)
@@ -107,7 +137,10 @@ func TestMCPServerFiltersToolsByGroupAndName(t *testing.T) {
 	if !toolsByName["gws_drive_files_list"] || !toolsByName["gws_drive_file_delete"] || !toolsByName["gws_docs_document_get"] {
 		t.Fatalf("expected selected drive group and docs tool, got %#v", toolsByName)
 	}
-	if toolsByName["gws_sheets_values_get"] || toolsByName["gws_slides_presentation_get"] || toolsByName["gws_docs_document_batch_update"] {
+	if !toolsByName["gws_gmail_messages_list"] || !toolsByName["gws_gmail_draft_delete"] {
+		t.Fatalf("expected selected gmail group, got %#v", toolsByName)
+	}
+	if toolsByName["gws_sheets_values_get"] || toolsByName["gws_slides_presentation_get"] || toolsByName["gws_docs_document_batch_update"] || toolsByName["gws_calendar_events_list"] {
 		t.Fatalf("expected unselected tools to be absent, got %#v", toolsByName)
 	}
 }
@@ -251,6 +284,10 @@ func TestMCPGWSToolValidation(t *testing.T) {
 		{name: "sheets values update missing request", tool: "gws_sheets_values_update", arguments: map[string]any{"spreadsheetId": "sheet", "range": "A1", "valueInputOption": "RAW"}},
 		{name: "docs batch update missing document id", tool: "gws_docs_document_batch_update", arguments: map[string]any{"request": map[string]any{}}},
 		{name: "slides batch update missing presentation id", tool: "gws_slides_presentation_batch_update", arguments: map[string]any{"request": map[string]any{}}},
+		{name: "gmail message get missing user id", tool: "gws_gmail_message_get", arguments: map[string]any{"messageId": "msg"}},
+		{name: "calendar event get missing event id", tool: "gws_calendar_event_get", arguments: map[string]any{"calendarId": "primary"}},
+		{name: "chat messages list missing space name", tool: "gws_chat_messages_list", arguments: map[string]any{}},
+		{name: "people person get missing resource name", tool: "gws_people_person_get", arguments: map[string]any{}},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -267,7 +304,7 @@ func TestMCPGWSToolValidation(t *testing.T) {
 
 func isReadOnlyGWSTool(name string) bool {
 	switch name {
-	case "gws_auth_test", "gws_drive_files_list", "gws_drive_file_get", "gws_drive_permissions_list", "gws_sheets_spreadsheet_get", "gws_sheets_values_get", "gws_docs_document_get", "gws_slides_presentation_get":
+	case "gws_auth_test", "gws_drive_files_list", "gws_drive_file_get", "gws_drive_permissions_list", "gws_sheets_spreadsheet_get", "gws_sheets_values_get", "gws_docs_document_get", "gws_slides_presentation_get", "gws_gmail_messages_list", "gws_gmail_message_get", "gws_gmail_drafts_list", "gws_gmail_draft_get", "gws_calendar_calendar_list_list", "gws_calendar_calendar_list_get", "gws_calendar_events_list", "gws_calendar_event_get", "gws_calendar_freebusy_query", "gws_chat_spaces_list", "gws_chat_space_get", "gws_chat_messages_list", "gws_chat_message_get", "gws_chat_members_list", "gws_people_person_get", "gws_people_connections_list", "gws_people_search_contacts", "gws_people_search_directory":
 		return true
 	default:
 		return false
@@ -276,7 +313,7 @@ func isReadOnlyGWSTool(name string) bool {
 
 func isDestructiveGWSTool(name string) bool {
 	switch name {
-	case "gws_drive_file_delete", "gws_drive_permission_delete":
+	case "gws_drive_file_delete", "gws_drive_permission_delete", "gws_gmail_draft_delete", "gws_calendar_event_delete":
 		return true
 	default:
 		return false

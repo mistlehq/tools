@@ -1,6 +1,6 @@
 # gws
 
-Thin CLI and MCP wrapper for Google Workspace Drive, Sheets, Docs, and Slides REST APIs.
+Thin CLI and MCP wrapper for Google Workspace Drive, Sheets, Docs, Slides, Gmail, Calendar, Chat, and People REST APIs.
 
 `gws` does not mint, refresh, store, or inspect credentials. Configure API base URLs and inject Google authorization outside the binary.
 
@@ -12,6 +12,10 @@ Required environment:
 - `GWS_SHEETS_BASE_URL`, for example `https://sheets.googleapis.com/v4`
 - `GWS_DOCS_BASE_URL`, for example `https://docs.googleapis.com/v1`
 - `GWS_SLIDES_BASE_URL`, for example `https://slides.googleapis.com/v1`
+- `GWS_GMAIL_BASE_URL`, for example `https://gmail.googleapis.com/gmail/v1`
+- `GWS_CALENDAR_BASE_URL`, for example `https://www.googleapis.com/calendar/v3`
+- `GWS_CHAT_BASE_URL`, for example `https://chat.googleapis.com/v1`
+- `GWS_PEOPLE_BASE_URL`, for example `https://people.googleapis.com/v1`
 
 The caller or proxy must inject:
 
@@ -47,8 +51,38 @@ gws slides presentations get --presentation-id <id>
 gws slides presentations create --request-file presentation.json
 gws slides presentations batch-update --presentation-id <id> --request-file request.json
 
+gws gmail messages list --user-id me --max-results 10
+gws gmail messages get --user-id me --message-id <id>
+gws gmail messages send --user-id me --request-file message.json
+gws gmail drafts list --user-id me
+gws gmail drafts get --user-id me --draft-id <id>
+gws gmail drafts create --user-id me --request-file draft.json
+gws gmail drafts send --user-id me --request-file draft-send.json
+gws gmail drafts delete --user-id me --draft-id <id>
+
+gws calendar calendar-list list
+gws calendar calendar-list get --calendar-id <id>
+gws calendar events list --calendar-id primary --max-results 10
+gws calendar events get --calendar-id primary --event-id <id>
+gws calendar events insert --calendar-id primary --request-file event.json
+gws calendar events patch --calendar-id primary --event-id <id> --request-file event.json
+gws calendar events delete --calendar-id primary --event-id <id>
+gws calendar freebusy query --request-file freebusy.json
+
+gws chat spaces list
+gws chat spaces get --space-name spaces/<id>
+gws chat messages list --space-name spaces/<id>
+gws chat messages get --message-name spaces/<id>/messages/<id>
+gws chat messages create --space-name spaces/<id> --request-file message.json
+gws chat members list --space-name spaces/<id>
+
+gws people people get --resource-name people/me --person-fields names,emailAddresses
+gws people connections list --resource-name people/me --person-fields names,emailAddresses
+gws people search-contacts --query thomas --read-mask names,emailAddresses
+gws people search-directory --query thomas --read-mask names,emailAddresses
+
 gws mcp serve
-gws mcp serve --tools drive,sheets
+gws mcp serve --tools drive,sheets,gmail
 ```
 
 `gws request` is the complete API coverage surface. Named commands and MCP tools provide progressive discovery for common Workspace workflows.
@@ -72,6 +106,10 @@ Supported groups:
 - `sheets`
 - `docs`
 - `slides`
+- `gmail`
+- `calendar`
+- `chat`
+- `people`
 
 ## Integration Tests
 
@@ -95,6 +133,14 @@ Optional:
 - `GWS_TEST_SHEETS_BASE_URL`, defaults to `https://sheets.googleapis.com/v4`
 - `GWS_TEST_DOCS_BASE_URL`, defaults to `https://docs.googleapis.com/v1`
 - `GWS_TEST_SLIDES_BASE_URL`, defaults to `https://slides.googleapis.com/v1`
+- `GWS_TEST_GMAIL_BASE_URL`, defaults to `https://gmail.googleapis.com/gmail/v1`
+- `GWS_TEST_CALENDAR_BASE_URL`, defaults to `https://www.googleapis.com/calendar/v3`
+- `GWS_TEST_CHAT_BASE_URL`, defaults to `https://chat.googleapis.com/v1`
+- `GWS_TEST_PEOPLE_BASE_URL`, defaults to `https://people.googleapis.com/v1`
+- `GWS_TEST_GMAIL_USER_ID`, enables optional Gmail list coverage, for example `me`.
+- `GWS_TEST_CALENDAR_ID`, enables optional Calendar list/freebusy coverage, for example `primary`.
+- `GWS_TEST_CHAT_SPACE_NAME`, enables optional Chat members coverage, for example `spaces/<id>`.
+- `GWS_TEST_PEOPLE_RESOURCE_NAME`, enables optional People get/connections coverage, for example `people/me`.
 
 The configured folder and files should be disposable. Standard live tests read and update the shared Drive file, document, spreadsheet, and presentation, then clean up inserted sheet/document/slide content where Google APIs return stable object IDs.
 

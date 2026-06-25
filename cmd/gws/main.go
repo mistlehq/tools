@@ -72,6 +72,14 @@ func (cli CLI) run(args []string) error {
 		return cli.runDocs(args[2:])
 	case "slides":
 		return cli.runSlides(args[2:])
+	case "gmail":
+		return cli.runGmail(args[2:])
+	case "calendar":
+		return cli.runCalendar(args[2:])
+	case "chat":
+		return cli.runChat(args[2:])
+	case "people":
+		return cli.runPeople(args[2:])
 	case "mcp":
 		return cli.runMCP(args[2:])
 	default:

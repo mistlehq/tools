@@ -137,3 +137,33 @@ var gwsSlidesPresentationBatchUpdateDoc = commandDoc{
 	Summary:     "Batch update a presentation",
 	Description: "Batch update a Google Slides presentation using Google's documented request shape.",
 }
+
+var gwsGmailMessagesListDoc = commandDoc{Command: "gws gmail messages list", Summary: "List Gmail messages", Description: "List Gmail messages for a user."}
+var gwsGmailMessageGetDoc = commandDoc{Command: "gws gmail messages get", Summary: "Get a Gmail message", Description: "Get a Gmail message for a user."}
+var gwsGmailMessageSendDoc = commandDoc{Command: "gws gmail messages send", Summary: "Send a Gmail message", Description: "Send a Gmail message using Google's documented message shape."}
+var gwsGmailDraftsListDoc = commandDoc{Command: "gws gmail drafts list", Summary: "List Gmail drafts", Description: "List Gmail drafts for a user."}
+var gwsGmailDraftGetDoc = commandDoc{Command: "gws gmail drafts get", Summary: "Get a Gmail draft", Description: "Get a Gmail draft for a user."}
+var gwsGmailDraftCreateDoc = commandDoc{Command: "gws gmail drafts create", Summary: "Create a Gmail draft", Description: "Create a Gmail draft using Google's documented draft shape."}
+var gwsGmailDraftSendDoc = commandDoc{Command: "gws gmail drafts send", Summary: "Send a Gmail draft", Description: "Send a Gmail draft using Google's documented draft send shape."}
+var gwsGmailDraftDeleteDoc = commandDoc{Command: "gws gmail drafts delete", Summary: "Delete a Gmail draft", Description: "Delete a Gmail draft for a user."}
+
+var gwsCalendarListListDoc = commandDoc{Command: "gws calendar calendar-list list", Summary: "List calendars", Description: "List Google Calendar calendar-list entries."}
+var gwsCalendarListGetDoc = commandDoc{Command: "gws calendar calendar-list get", Summary: "Get a calendar-list entry", Description: "Get a Google Calendar calendar-list entry."}
+var gwsCalendarEventsListDoc = commandDoc{Command: "gws calendar events list", Summary: "List calendar events", Description: "List events for a Google Calendar calendar."}
+var gwsCalendarEventGetDoc = commandDoc{Command: "gws calendar events get", Summary: "Get a calendar event", Description: "Get an event from a Google Calendar calendar."}
+var gwsCalendarEventInsertDoc = commandDoc{Command: "gws calendar events insert", Summary: "Insert a calendar event", Description: "Insert a Google Calendar event using Google's documented event shape."}
+var gwsCalendarEventPatchDoc = commandDoc{Command: "gws calendar events patch", Summary: "Patch a calendar event", Description: "Patch a Google Calendar event using Google's documented event shape."}
+var gwsCalendarEventDeleteDoc = commandDoc{Command: "gws calendar events delete", Summary: "Delete a calendar event", Description: "Delete a Google Calendar event."}
+var gwsCalendarFreeBusyQueryDoc = commandDoc{Command: "gws calendar freebusy query", Summary: "Query calendar freebusy", Description: "Query Google Calendar free/busy information using Google's documented request shape."}
+
+var gwsChatSpacesListDoc = commandDoc{Command: "gws chat spaces list", Summary: "List Chat spaces", Description: "List Google Chat spaces."}
+var gwsChatSpaceGetDoc = commandDoc{Command: "gws chat spaces get", Summary: "Get a Chat space", Description: "Get a Google Chat space."}
+var gwsChatMessagesListDoc = commandDoc{Command: "gws chat messages list", Summary: "List Chat messages", Description: "List Google Chat messages in a space."}
+var gwsChatMessageGetDoc = commandDoc{Command: "gws chat messages get", Summary: "Get a Chat message", Description: "Get a Google Chat message."}
+var gwsChatMessageCreateDoc = commandDoc{Command: "gws chat messages create", Summary: "Create a Chat message", Description: "Create a Google Chat message using Google's documented message shape."}
+var gwsChatMembersListDoc = commandDoc{Command: "gws chat members list", Summary: "List Chat members", Description: "List Google Chat members in a space."}
+
+var gwsPeoplePersonGetDoc = commandDoc{Command: "gws people people get", Summary: "Get a person", Description: "Get a People API person resource."}
+var gwsPeopleConnectionsListDoc = commandDoc{Command: "gws people connections list", Summary: "List people connections", Description: "List People API connections for a person resource."}
+var gwsPeopleSearchContactsDoc = commandDoc{Command: "gws people search-contacts", Summary: "Search contacts", Description: "Search authenticated user's contacts using People API."}
+var gwsPeopleSearchDirectoryDoc = commandDoc{Command: "gws people search-directory", Summary: "Search directory people", Description: "Search Google Workspace directory people using People API."}
