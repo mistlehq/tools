@@ -1201,11 +1201,35 @@ func writeMessages(output io.Writer, messages []SlackMessage) {
 		fmt.Fprintln(output, "Type: "+messageType(message))
 		fmt.Fprintln(output, "Text:")
 		fmt.Fprintln(output, message.Text)
+		writeMessageFiles(output, message.Files)
 
 		if index < len(messages)-1 {
 			fmt.Fprintln(output, "")
 		}
 	}
+}
+
+func writeMessageFiles(output io.Writer, files []SlackFile) {
+	if len(files) == 0 {
+		return
+	}
+
+	fmt.Fprintln(output, "Files:")
+	for _, file := range files {
+		fmt.Fprintf(output, "- %s\t%s\t%s\n", file.ID, file.Name, slackFileType(file))
+	}
+}
+
+func slackFileType(file SlackFile) string {
+	if file.Mimetype != "" {
+		return file.Mimetype
+	}
+
+	if file.Filetype != "" {
+		return file.Filetype
+	}
+
+	return file.PrettyType
 }
 
 func writePaginationSeparator(output io.Writer, hasMessages bool) {

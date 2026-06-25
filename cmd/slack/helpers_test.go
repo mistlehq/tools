@@ -100,3 +100,35 @@ func parseLineValue(t *testing.T, output string, prefix string) string {
 	t.Fatalf("expected output to contain line with prefix %q, got %q", prefix, output)
 	return ""
 }
+
+func waitForSlackFileMessages(t *testing.T, fileID string, fetch func() ([]SlackMessage, string)) {
+	t.Helper()
+
+	deadline := time.Now().Add(20 * time.Second)
+	var lastDiagnostic string
+	for {
+		messages, diagnostic := fetch()
+		lastDiagnostic = diagnostic
+		if messagesContainFile(messages, fileID) {
+			return
+		}
+
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for Slack messages to include file %q; last result: %s", fileID, lastDiagnostic)
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func messagesContainFile(messages []SlackMessage, fileID string) bool {
+	for _, message := range messages {
+		for _, file := range message.Files {
+			if file.ID == fileID {
+				return true
+			}
+		}
+	}
+
+	return false
+}

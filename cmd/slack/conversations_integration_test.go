@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -168,6 +170,59 @@ func TestConversationsHistoryJSON(t *testing.T) {
 	}
 }
 
+func TestConversationsHistoryIncludesFile(t *testing.T) {
+	env, sc := setupSlackClient(t)
+	channelID := getRequiredEnv(t, "SLACK_TEST_CHANNEL_ID")
+
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "history-file.txt")
+	if err := os.WriteFile(filePath, []byte("slack history file integration test"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	uploaded, err := sc.UploadFile(SlackFilesUploadInput{
+		Path:    filePath,
+		Channel: channelID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	file := firstUploadedFile(uploaded)
+	if file.ID != "" {
+		t.Cleanup(func() {
+			_ = sc.DeleteFile(file.ID)
+		})
+	}
+	if file.ID == "" {
+		t.Fatalf("expected uploaded file id, got %#v", uploaded)
+	}
+
+	waitForSlackFileMessages(t, file.ID, func() ([]SlackMessage, string) {
+		commandResult, err := runCommandWithInput(t, env, "", "slack", "conversations", "history", "--channel", channelID, "--limit", "10", "--json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var history SlackConversationsHistory
+		if err := json.Unmarshal(commandResult.stdout.Bytes(), &history); err != nil {
+			t.Fatalf("expected valid JSON output: %v", err)
+		}
+
+		return history.Messages, commandResult.stdout.String()
+	})
+
+	commandResult, err := runCommandWithInput(t, env, "", "slack", "conversations", "history", "--channel", channelID, "--limit", "10")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := commandResult.stdout.String()
+	if !strings.Contains(output, "Files:\n- "+file.ID+"\t") {
+		t.Fatalf("expected plain history output to include file id %q, got %q", file.ID, output)
+	}
+}
+
 func TestConversationsReplies(t *testing.T) {
 	env, sc := setupSlackClient(t)
 	channelID := getRequiredEnv(t, "SLACK_TEST_CHANNEL_ID")
@@ -219,6 +274,65 @@ func TestConversationsRepliesJSON(t *testing.T) {
 
 	if len(thread.Messages) < 3 {
 		t.Fatalf("expected at least 3 messages in thread JSON, got %d", len(thread.Messages))
+	}
+}
+
+func TestConversationsRepliesIncludesThreadFile(t *testing.T) {
+	env, sc := setupSlackClient(t)
+	channelID := getRequiredEnv(t, "SLACK_TEST_CHANNEL_ID")
+
+	root, replies := createTestThread(t, sc, channelID)
+	t.Cleanup(func() {
+		cleanupTestThread(t, sc, channelID, root.TS, replies)
+	})
+
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "thread-file.txt")
+	if err := os.WriteFile(filePath, []byte("slack thread file integration test"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	uploaded, err := sc.UploadFile(SlackFilesUploadInput{
+		Path:     filePath,
+		Channel:  channelID,
+		ThreadTS: root.TS,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	file := firstUploadedFile(uploaded)
+	if file.ID != "" {
+		t.Cleanup(func() {
+			_ = sc.DeleteFile(file.ID)
+		})
+	}
+	if file.ID == "" {
+		t.Fatalf("expected uploaded file id, got %#v", uploaded)
+	}
+
+	waitForSlackFileMessages(t, file.ID, func() ([]SlackMessage, string) {
+		commandResult, err := runCommandWithInput(t, env, "", "slack", "conversations", "replies", "--channel", channelID, "--ts", root.TS, "--limit", "10", "--json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var thread SlackConversationsReplies
+		if err := json.Unmarshal(commandResult.stdout.Bytes(), &thread); err != nil {
+			t.Fatalf("expected valid JSON output: %v", err)
+		}
+
+		return thread.Messages, commandResult.stdout.String()
+	})
+
+	commandResult, err := runCommandWithInput(t, env, "", "slack", "conversations", "replies", "--channel", channelID, "--ts", root.TS, "--limit", "10")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := commandResult.stdout.String()
+	if !strings.Contains(output, "Files:\n- "+file.ID+"\t") {
+		t.Fatalf("expected plain replies output to include file id %q, got %q", file.ID, output)
 	}
 }
 
