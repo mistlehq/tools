@@ -132,6 +132,7 @@ By default, Slack API commands use stable plain text output:
 
 - key/value lines for single-object responses
 - structured message blocks for conversation history
+- file IDs in conversation history and thread replies when Slack returns uploaded files
 - TSV tables for list responses
 
 Use `--json` to emit compact provider JSON instead.

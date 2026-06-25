@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -224,6 +225,7 @@ func TestMCPSlackTools(t *testing.T) {
 		"path":           uploadPath,
 		"channel":        channelID,
 		"initialComment": "uploaded from MCP test",
+		"threadTs":       posted.TS,
 	})
 	var uploaded SlackFilesCompleteUploadExternal
 	decodeMCPStructuredContent(t, uploadResult, &uploaded)
@@ -236,6 +238,47 @@ func TestMCPSlackTools(t *testing.T) {
 	if !uploaded.OK || file.ID == "" {
 		t.Fatalf("expected uploaded file, got %#v", uploaded)
 	}
+
+	waitForSlackFileMessages(t, file.ID, func() ([]SlackMessage, string) {
+		repliesResult := callSlackMCPTool(t, session, "slack_conversations_replies", map[string]any{
+			"channel": channelID,
+			"ts":      posted.TS,
+			"limit":   "10",
+		})
+		var replies SlackConversationsReplies
+		decodeMCPStructuredContent(t, repliesResult, &replies)
+		return replies.Messages, fmt.Sprintf("%#v", replies.Messages)
+	})
+
+	historyUploadPath := filepath.Join(tempDir, "mcp-history-upload.txt")
+	if err := os.WriteFile(historyUploadPath, []byte("slack mcp history upload integration test"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	historyUploadResult := callSlackMCPTool(t, session, "slack_files_upload", map[string]any{
+		"path":    historyUploadPath,
+		"channel": channelID,
+	})
+	var historyUploaded SlackFilesCompleteUploadExternal
+	decodeMCPStructuredContent(t, historyUploadResult, &historyUploaded)
+	historyFile := firstUploadedFile(historyUploaded)
+	if historyFile.ID != "" {
+		t.Cleanup(func() {
+			_ = sc.DeleteFile(historyFile.ID)
+		})
+	}
+	if !historyUploaded.OK || historyFile.ID == "" {
+		t.Fatalf("expected history uploaded file, got %#v", historyUploaded)
+	}
+
+	waitForSlackFileMessages(t, historyFile.ID, func() ([]SlackMessage, string) {
+		historyResult := callSlackMCPTool(t, session, "slack_conversations_history", map[string]any{
+			"channel": channelID,
+			"limit":   "10",
+		})
+		var history SlackConversationsHistory
+		decodeMCPStructuredContent(t, historyResult, &history)
+		return history.Messages, fmt.Sprintf("%#v", history.Messages)
+	})
 
 	infoFileResult, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "slack_files_info",

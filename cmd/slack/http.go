@@ -67,6 +67,7 @@ type SlackMessage struct {
 	Text        string           `json:"text"`
 	Blocks      []map[string]any `json:"blocks"`
 	Attachments []map[string]any `json:"attachments"`
+	Files       []SlackFile      `json:"files"`
 }
 
 type SlackConversationsHistory struct {
@@ -130,6 +131,9 @@ type SlackFile struct {
 	Name               string `json:"name"`
 	Title              string `json:"title"`
 	Size               int64  `json:"size"`
+	Mimetype           string `json:"mimetype"`
+	Filetype           string `json:"filetype"`
+	PrettyType         string `json:"pretty_type"`
 	URLPrivate         string `json:"url_private"`
 	URLPrivateDownload string `json:"url_private_download"`
 	Permalink          string `json:"permalink"`
