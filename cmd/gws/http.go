@@ -19,10 +19,14 @@ type GWSClient struct {
 type GWSAPI string
 
 const (
-	GWSAPIDrive  GWSAPI = "drive"
-	GWSAPISheets GWSAPI = "sheets"
-	GWSAPIDocs   GWSAPI = "docs"
-	GWSAPISlides GWSAPI = "slides"
+	GWSAPIDrive    GWSAPI = "drive"
+	GWSAPISheets   GWSAPI = "sheets"
+	GWSAPIDocs     GWSAPI = "docs"
+	GWSAPISlides   GWSAPI = "slides"
+	GWSAPIGmail    GWSAPI = "gmail"
+	GWSAPICalendar GWSAPI = "calendar"
+	GWSAPIChat     GWSAPI = "chat"
+	GWSAPIPeople   GWSAPI = "people"
 )
 
 type GWSRequest struct {
@@ -149,6 +153,14 @@ func (gc GWSClient) baseURL(api GWSAPI) (string, error) {
 		return gc.config.DocsBaseURL, nil
 	case GWSAPISlides:
 		return gc.config.SlidesBaseURL, nil
+	case GWSAPIGmail:
+		return gc.config.GmailBaseURL, nil
+	case GWSAPICalendar:
+		return gc.config.CalendarBaseURL, nil
+	case GWSAPIChat:
+		return gc.config.ChatBaseURL, nil
+	case GWSAPIPeople:
+		return gc.config.PeopleBaseURL, nil
 	default:
 		return "", fmt.Errorf("unsupported api: %s", api)
 	}

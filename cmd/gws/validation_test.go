@@ -7,7 +7,7 @@ func TestRawRequestValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := NewGWSClient(Config{DriveBaseURL: "http://127.0.0.1"})
+	client := NewGWSClient(validUnitConfig())
 	if _, err := client.Request(GWSRequest{API: "drive", Method: "TRACE", Path: "/files"}); err == nil {
 		t.Fatal("expected unsupported method to fail")
 	}
@@ -17,7 +17,7 @@ func TestRawRequestValidation(t *testing.T) {
 	if _, err := client.Request(GWSRequest{API: "drive", Method: "GET", Path: "files"}); err == nil {
 		t.Fatal("expected relative path to fail")
 	}
-	if _, err := client.Request(GWSRequest{API: "calendar", Method: "GET", Path: "/events"}); err == nil {
+	if _, err := client.Request(GWSRequest{API: "unsupported", Method: "GET", Path: "/events"}); err == nil {
 		t.Fatal("expected unsupported api to fail")
 	}
 }
@@ -46,4 +46,38 @@ func TestRequiredCommandArguments(t *testing.T) {
 	if _, _, _, _, err := parseSpreadsheetValuesUpdateArgs(nil, "values update"); err == nil {
 		t.Fatal("expected missing spreadsheet values args to fail")
 	}
+	if _, _, _, err := parseUserIDChildIDAndParamsArgs(nil, "messages get", "message-id", nil); err == nil {
+		t.Fatal("expected missing gmail ids to fail")
+	}
+	if _, _, _, err := parseTwoIDAndParamsArgs(nil, "events get", "calendar-id", "event-id", nil); err == nil {
+		t.Fatal("expected missing calendar ids to fail")
+	}
+	if _, err := parseRequiredQueryMaskArgs(nil, "search-contacts", "read-mask", nil); err == nil {
+		t.Fatal("expected missing people search args to fail")
+	}
+}
+
+func TestGoogleResourcePathValidation(t *testing.T) {
+	path, err := googleResourcePath("space-name", "spaces/AAA/messages/BBB", "spaces/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "spaces/AAA/messages/BBB" {
+		t.Fatalf("expected slashes to be preserved, got %q", path)
+	}
+	if _, err := googleResourcePath("resource-name", "people/me?personFields=names", "people/"); err == nil {
+		t.Fatal("expected query characters to fail")
+	}
+	if _, err := googleResourcePath("resource-name", "contactGroups/all", "people/"); err == nil {
+		t.Fatal("expected wrong prefix to fail")
+	}
+}
+
+func validUnitConfig() Config {
+	env := validUnitEnv()
+	config, err := loadConfig(env)
+	if err != nil {
+		panic(err)
+	}
+	return config
 }

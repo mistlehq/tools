@@ -116,11 +116,19 @@ func setupCommandEnvironment(t *testing.T) Environment {
 	sheetsProxy := startBearerProxy(t, "sheets", getOptionalEnv("GWS_TEST_SHEETS_BASE_URL", "https://sheets.googleapis.com/v4"), token)
 	docsProxy := startBearerProxy(t, "docs", getOptionalEnv("GWS_TEST_DOCS_BASE_URL", "https://docs.googleapis.com/v1"), token)
 	slidesProxy := startBearerProxy(t, "slides", getOptionalEnv("GWS_TEST_SLIDES_BASE_URL", "https://slides.googleapis.com/v1"), token)
+	gmailProxy := startBearerProxy(t, "gmail", getOptionalEnv("GWS_TEST_GMAIL_BASE_URL", "https://gmail.googleapis.com/gmail/v1"), token)
+	calendarProxy := startBearerProxy(t, "calendar", getOptionalEnv("GWS_TEST_CALENDAR_BASE_URL", "https://www.googleapis.com/calendar/v3"), token)
+	chatProxy := startBearerProxy(t, "chat", getOptionalEnv("GWS_TEST_CHAT_BASE_URL", "https://chat.googleapis.com/v1"), token)
+	peopleProxy := startBearerProxy(t, "people", getOptionalEnv("GWS_TEST_PEOPLE_BASE_URL", "https://people.googleapis.com/v1"), token)
 	return Environment{
-		"GWS_DRIVE_BASE_URL":  driveProxy.BaseURL,
-		"GWS_SHEETS_BASE_URL": sheetsProxy.BaseURL,
-		"GWS_DOCS_BASE_URL":   docsProxy.BaseURL,
-		"GWS_SLIDES_BASE_URL": slidesProxy.BaseURL,
+		"GWS_DRIVE_BASE_URL":    driveProxy.BaseURL,
+		"GWS_SHEETS_BASE_URL":   sheetsProxy.BaseURL,
+		"GWS_DOCS_BASE_URL":     docsProxy.BaseURL,
+		"GWS_SLIDES_BASE_URL":   slidesProxy.BaseURL,
+		"GWS_GMAIL_BASE_URL":    gmailProxy.BaseURL,
+		"GWS_CALENDAR_BASE_URL": calendarProxy.BaseURL,
+		"GWS_CHAT_BASE_URL":     chatProxy.BaseURL,
+		"GWS_PEOPLE_BASE_URL":   peopleProxy.BaseURL,
 	}
 }
 
@@ -165,6 +173,18 @@ func mintGoogleWorkspaceTestAccessToken(t *testing.T) string {
 		"https://www.googleapis.com/auth/spreadsheets",
 		"https://www.googleapis.com/auth/documents",
 		"https://www.googleapis.com/auth/presentations",
+		"https://www.googleapis.com/auth/gmail.readonly",
+		"https://www.googleapis.com/auth/gmail.compose",
+		"https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+		"https://www.googleapis.com/auth/calendar.events.readonly",
+		"https://www.googleapis.com/auth/calendar.events.freebusy",
+		"https://www.googleapis.com/auth/chat.spaces.readonly",
+		"https://www.googleapis.com/auth/chat.memberships.readonly",
+		"https://www.googleapis.com/auth/chat.messages.readonly",
+		"https://www.googleapis.com/auth/chat.messages.create",
+		"https://www.googleapis.com/auth/userinfo.profile",
+		"https://www.googleapis.com/auth/contacts.readonly",
+		"https://www.googleapis.com/auth/directory.readonly",
 	)
 	if err != nil {
 		t.Fatalf("failed to parse service account JSON key: %v", err)
@@ -223,10 +243,14 @@ func decodeCommandJSON(t *testing.T, result commandResult, out any) {
 func newLocalGWSMCPTestSession(t *testing.T) *mcp.ClientSession {
 	t.Helper()
 	return newGWSMCPTestSession(t, NewGWSClient(Config{
-		DriveBaseURL:  "http://127.0.0.1",
-		SheetsBaseURL: "http://127.0.0.1",
-		DocsBaseURL:   "http://127.0.0.1",
-		SlidesBaseURL: "http://127.0.0.1",
+		DriveBaseURL:    "http://127.0.0.1",
+		SheetsBaseURL:   "http://127.0.0.1",
+		DocsBaseURL:     "http://127.0.0.1",
+		SlidesBaseURL:   "http://127.0.0.1",
+		GmailBaseURL:    "http://127.0.0.1",
+		CalendarBaseURL: "http://127.0.0.1",
+		ChatBaseURL:     "http://127.0.0.1",
+		PeopleBaseURL:   "http://127.0.0.1",
 	}), nil)
 }
 

@@ -25,7 +25,7 @@ type gwsMCPConfig struct {
 type gwsEmptyToolInput struct{}
 
 type gwsRawRequestToolInput struct {
-	API    string         `json:"api" jsonschema:"Google Workspace API base to use: drive, sheets, docs, or slides."`
+	API    string         `json:"api" jsonschema:"Google Workspace API base to use: drive, sheets, docs, slides, gmail, calendar, chat, or people."`
 	Method string         `json:"method,omitempty" jsonschema:"HTTP method. Defaults to GET."`
 	Path   string         `json:"path" jsonschema:"API path beginning with /."`
 	Params map[string]any `json:"params,omitempty" jsonschema:"Query parameters to append to the request."`
@@ -242,6 +242,10 @@ func newGWSMCPServer(gc GWSClient, tools map[string]bool) *mcp.Server {
 	addGWSSheetsTools(server, tools, gc, readOnly, mutating)
 	addGWSDocsTools(server, tools, gc, readOnly, mutating)
 	addGWSSlidesTools(server, tools, gc, readOnly, mutating)
+	addGWSGmailTools(server, tools, gc, readOnly, mutating, destructive)
+	addGWSCalendarTools(server, tools, gc, readOnly, mutating, destructive)
+	addGWSChatTools(server, tools, gc, readOnly, mutating)
+	addGWSPeopleTools(server, tools, gc, readOnly)
 	return server
 }
 
@@ -357,7 +361,7 @@ Usage:
 Options:
   --addr <addr>        Listen address. Defaults to %s.
   --endpoint <path>    MCP HTTP endpoint. Defaults to %s.
-  --tools <list>       Comma-separated tool groups or tool names. Groups: auth, raw, drive, sheets, docs, slides.
+  --tools <list>       Comma-separated tool groups or tool names. Groups: auth, raw, drive, sheets, docs, slides, gmail, calendar, chat, people.
 
 Tools:
   gws_request                            %s
@@ -382,5 +386,31 @@ Tools:
   gws_slides_presentation_get            %s
   gws_slides_presentation_create         %s
   gws_slides_presentation_batch_update   %s
-`, defaultMCPAddr, defaultMCPEndpoint, gwsRequestDoc.Summary, gwsAuthTestDoc.Summary, gwsDriveFilesListDoc.Summary, gwsDriveFileGetDoc.Summary, gwsDriveFileCreateDoc.Summary, gwsDriveFileCopyDoc.Summary, gwsDriveFileUpdateDoc.Summary, gwsDriveFileDeleteDoc.Summary, gwsDrivePermissionsListDoc.Summary, gwsDrivePermissionCreateDoc.Summary, gwsDrivePermissionDeleteDoc.Summary, gwsSheetsSpreadsheetGetDoc.Summary, gwsSheetsSpreadsheetCreateDoc.Summary, gwsSheetsSpreadsheetBatchUpdateDoc.Summary, gwsSheetsValuesGetDoc.Summary, gwsSheetsValuesUpdateDoc.Summary, gwsSheetsValuesBatchUpdateDoc.Summary, gwsDocsDocumentGetDoc.Summary, gwsDocsDocumentBatchUpdateDoc.Summary, gwsSlidesPresentationGetDoc.Summary, gwsSlidesPresentationCreateDoc.Summary, gwsSlidesPresentationBatchUpdateDoc.Summary)
+  gws_gmail_messages_list                %s
+  gws_gmail_message_get                  %s
+  gws_gmail_message_send                 %s
+  gws_gmail_drafts_list                  %s
+  gws_gmail_draft_get                    %s
+  gws_gmail_draft_create                 %s
+  gws_gmail_draft_send                   %s
+  gws_gmail_draft_delete                 %s
+  gws_calendar_calendar_list_list        %s
+  gws_calendar_calendar_list_get         %s
+  gws_calendar_events_list               %s
+  gws_calendar_event_get                 %s
+  gws_calendar_event_insert              %s
+  gws_calendar_event_patch               %s
+  gws_calendar_event_delete              %s
+  gws_calendar_freebusy_query            %s
+  gws_chat_spaces_list                   %s
+  gws_chat_space_get                     %s
+  gws_chat_messages_list                 %s
+  gws_chat_message_get                   %s
+  gws_chat_message_create                %s
+  gws_chat_members_list                  %s
+  gws_people_person_get                  %s
+  gws_people_connections_list            %s
+  gws_people_search_contacts             %s
+  gws_people_search_directory            %s
+`, defaultMCPAddr, defaultMCPEndpoint, gwsRequestDoc.Summary, gwsAuthTestDoc.Summary, gwsDriveFilesListDoc.Summary, gwsDriveFileGetDoc.Summary, gwsDriveFileCreateDoc.Summary, gwsDriveFileCopyDoc.Summary, gwsDriveFileUpdateDoc.Summary, gwsDriveFileDeleteDoc.Summary, gwsDrivePermissionsListDoc.Summary, gwsDrivePermissionCreateDoc.Summary, gwsDrivePermissionDeleteDoc.Summary, gwsSheetsSpreadsheetGetDoc.Summary, gwsSheetsSpreadsheetCreateDoc.Summary, gwsSheetsSpreadsheetBatchUpdateDoc.Summary, gwsSheetsValuesGetDoc.Summary, gwsSheetsValuesUpdateDoc.Summary, gwsSheetsValuesBatchUpdateDoc.Summary, gwsDocsDocumentGetDoc.Summary, gwsDocsDocumentBatchUpdateDoc.Summary, gwsSlidesPresentationGetDoc.Summary, gwsSlidesPresentationCreateDoc.Summary, gwsSlidesPresentationBatchUpdateDoc.Summary, gwsGmailMessagesListDoc.Summary, gwsGmailMessageGetDoc.Summary, gwsGmailMessageSendDoc.Summary, gwsGmailDraftsListDoc.Summary, gwsGmailDraftGetDoc.Summary, gwsGmailDraftCreateDoc.Summary, gwsGmailDraftSendDoc.Summary, gwsGmailDraftDeleteDoc.Summary, gwsCalendarListListDoc.Summary, gwsCalendarListGetDoc.Summary, gwsCalendarEventsListDoc.Summary, gwsCalendarEventGetDoc.Summary, gwsCalendarEventInsertDoc.Summary, gwsCalendarEventPatchDoc.Summary, gwsCalendarEventDeleteDoc.Summary, gwsCalendarFreeBusyQueryDoc.Summary, gwsChatSpacesListDoc.Summary, gwsChatSpaceGetDoc.Summary, gwsChatMessagesListDoc.Summary, gwsChatMessageGetDoc.Summary, gwsChatMessageCreateDoc.Summary, gwsChatMembersListDoc.Summary, gwsPeoplePersonGetDoc.Summary, gwsPeopleConnectionsListDoc.Summary, gwsPeopleSearchContactsDoc.Summary, gwsPeopleSearchDirectoryDoc.Summary)
 }
