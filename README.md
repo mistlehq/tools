@@ -31,6 +31,8 @@ All CLIs in this repository follow the same basic shape:
   Jira CLI for Jira Cloud.
 - [`slack`](./cmd/slack/README.md)
   Slack CLI.
+- [`discord`](./cmd/discord/README.md)
+  Discord CLI.
 - [`ga`](./cmd/ga/README.md)
   Google Analytics CLI.
 - [`googleads`](./cmd/googleads/README.md)
