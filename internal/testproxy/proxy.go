@@ -12,20 +12,23 @@ import (
 type AuthMode string
 
 const (
-	AuthModeBasic  AuthMode = "basic"
-	AuthModeBearer AuthMode = "bearer"
-	AuthModeHeader AuthMode = "header"
+	AuthModeBasic             AuthMode = "basic"
+	AuthModeBearer            AuthMode = "bearer"
+	AuthModeHeader            AuthMode = "header"
+	AuthModePathSegmentPrefix AuthMode = "path_segment_prefix"
 )
 
 type Config struct {
-	UpstreamBaseURL string
-	AuthMode        AuthMode
-	Username        string
-	Password        string
-	Token           string
-	HeaderName      string
-	HeaderValue     string
-	Headers         map[string]string
+	UpstreamBaseURL   string
+	AuthMode          AuthMode
+	Username          string
+	Password          string
+	Token             string
+	HeaderName        string
+	HeaderValue       string
+	SegmentPrefix     string
+	SegmentCredential string
+	Headers           map[string]string
 }
 
 type Server struct {
@@ -36,6 +39,11 @@ type Server struct {
 func basicAuthorizationHeader(username string, password string) string {
 	credentials := username + ":" + password
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(credentials))
+}
+
+func prependPathSegment(outURL *url.URL, segment string) {
+	outURL.Path = "/" + segment + outURL.Path
+	outURL.RawPath = ""
 }
 
 func Start(config Config) (*Server, error) {
@@ -64,6 +72,13 @@ func Start(config Config) (*Server, error) {
 		if config.HeaderValue == "" {
 			return nil, fmt.Errorf("header auth requires header value")
 		}
+	case AuthModePathSegmentPrefix:
+		if config.SegmentPrefix == "" {
+			return nil, fmt.Errorf("path segment prefix auth requires segment prefix")
+		}
+		if config.SegmentCredential == "" {
+			return nil, fmt.Errorf("path segment prefix auth requires segment credential")
+		}
 	default:
 		return nil, fmt.Errorf("unsupported auth mode: %s", config.AuthMode)
 	}
@@ -81,6 +96,8 @@ func Start(config Config) (*Server, error) {
 				r.Out.Header.Set("Authorization", "Bearer "+config.Token)
 			case AuthModeHeader:
 				r.Out.Header.Set(config.HeaderName, config.HeaderValue)
+			case AuthModePathSegmentPrefix:
+				prependPathSegment(r.Out.URL, config.SegmentPrefix+config.SegmentCredential)
 			}
 			for name, value := range config.Headers {
 				r.Out.Header.Set(name, value)
