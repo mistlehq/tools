@@ -33,6 +33,8 @@ All CLIs in this repository follow the same basic shape:
   Slack CLI.
 - [`discord`](./cmd/discord/README.md)
   Discord CLI.
+- [`telegram`](./cmd/telegram/README.md)
+  Telegram Bot API CLI.
 - [`ga`](./cmd/ga/README.md)
   Google Analytics CLI.
 - [`googleads`](./cmd/googleads/README.md)
